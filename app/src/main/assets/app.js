@@ -716,10 +716,25 @@ function vAyarlar() {
   }
   h += '</section>';
 
-  h += '<section class="card"><h2 class="card-title">Yedek</h2>' +
-    '<p class="note">Kayıtlar sadece bu telefonda durur. Telefon kaybolursa ya da değişirse kayıtlar gider. Ayda bir yedek alıp Google Drive\'a kaydetmeniz önerilir.</p>' +
-    (DB.sonYedek ? '<p class="note">Son yedek: ' + esc(tarihAdi(DB.sonYedek)) + '</p>' : '<p class="note warn">Henüz yedek alınmadı.</p>') +
-    '<div class="actions"><button type="button" class="btn" data-act="yedek-al">Yedek al</button>' +
+  var oto = {};
+  try { oto = BR && BR.backupInfo ? JSON.parse(BR.backupInfo()) : {}; } catch (e) { oto = {}; }
+  h += '<section class="card"><h2 class="card-title">Otomatik yedek</h2>' +
+    (oto.klasor
+      ? '<p class="note">Her gün ve uygulamadan her çıkışta şu klasöre yedek alınıyor: <b>' + esc(oto.klasor) + '</b>. Son 30 günün yedeği saklanır.</p>' +
+        (oto.son ? '<p class="note">Son otomatik yedek: ' + esc(tarihAdi(oto.son)) + '</p>' : '') +
+        (oto.hata ? '<p class="note warn">' + esc(oto.hata) + '</p>' : '') +
+        '<div class="actions"><button type="button" class="btn ghost" data-act="oto-simdi">Şimdi yedekle</button>' +
+        '<button type="button" class="btn ghost" data-act="oto-klasor">Klasörü değiştir</button></div>'
+      : '<p class="note warn">Otomatik yedek klasörü seçilmedi.</p>' +
+        '<p class="note">Bir kez klasör seçin, uygulama her gün oraya kendiliğinden yedek alsın. Öneri: telefonda “Belgeler” içinde “Elif Apartmanı Yedek” adında bir klasör oluşturup onu seçin.</p>' +
+        '<button type="button" class="btn block" data-act="oto-klasor">Yedek klasörü seç</button>') +
+    '<p class="note">Telefon kaybolursa diye: telefonun <b>Ayarlar → Google → Yedekleme</b> bölümünde yedekleme açıksa uygulamanın kayıtları Google hesabına da yedeklenir.</p>' +
+    '</section>';
+
+  h += '<section class="card"><h2 class="card-title">Elle yedek</h2>' +
+    '<p class="note">İstediğiniz an bir yedek dosyası oluşturup Google Drive\'a veya başka bir yere kaydedebilirsiniz.</p>' +
+    (DB.sonYedek ? '<p class="note">Son elle yedek: ' + esc(tarihAdi(DB.sonYedek)) + '</p>' : '') +
+    '<div class="actions"><button type="button" class="btn ghost" data-act="yedek-al">Yedek al</button>' +
     '<button type="button" class="btn ghost" data-act="yedek-yukle">Yedekten yükle</button></div>' +
     '<button type="button" class="btn ghost block" data-act="csv">Excel için ödemeleri dışa aktar</button></section>';
 
@@ -1444,6 +1459,8 @@ var EYLEM = {
   'yedek-al': yedekAl,
   'yedek-yukle': function () { if (BR && BR.importData) BR.importData(); else toast('Yedek yükleme sadece telefonda çalışır'); },
   'csv': csvAktar,
+  'oto-klasor': function () { if (BR && BR.chooseBackupFolder) BR.chooseBackupFolder(); else toast('Sadece telefonda çalışır'); },
+  'oto-simdi': function () { if (BR && BR.backupNow) { BR.backupNow(); toast('Yedekleniyor…'); } },
   'guncelleme-kontrol': function () { guncellemeKontrol(true); },
   'guncelle': function () {
     var url = S.guncelleme ? S.guncelleme.url : APK_URL;
@@ -1458,6 +1475,12 @@ var DEGISIM = {
   'a-saat': function (el) { DB.ayarlar.saat = +el.value; kaydet(); toast('Bildirimler her gün ' + pad(el.value) + ':00 civarında gelir'); }
 };
 
+W.onBackupFolder = function () {
+  var oto = {};
+  try { oto = JSON.parse(BR.backupInfo()); } catch (e) { oto = {}; }
+  toast(oto.hata ? oto.hata : 'Yedek kaydedildi');
+  if (S.tab === 'ayarlar' && !YIGIN.length) ciz();
+};
 W.onBack = function () {
   if (YIGIN.length) { sayfaKapat(); yenile(); return true; }
   if (S.tab !== 'ozet') { S.tab = 'ozet'; ciz(); return true; }

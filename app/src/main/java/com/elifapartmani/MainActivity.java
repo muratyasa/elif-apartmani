@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
     private static final int REQ_IMPORT = 12;
     private static final int REQ_NOTIF = 13;
     private static final int REQ_CALL = 14;
+    private static final int REQ_TREE = 15;
     private String pendingCall;
 
     static final String RELEASE_API = "https://api.github.com/repos/muratyasa/elif-apartmani/releases/latest";
@@ -68,7 +69,10 @@ public class MainActivity extends Activity {
 
         Reminders.ensureChannel(this);
         Reminders.scheduleDaily(this);
-        new Thread(() -> Reminders.runIfDue(getApplicationContext())).start();
+        new Thread(() -> {
+            Reminders.runIfDue(getApplicationContext());
+            AutoBackup.run(getApplicationContext(), false);
+        }).start();
 
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
@@ -80,6 +84,14 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.evaluateJavascript("window.onAppResume && window.onAppResume()", null);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Uygulamadan çıkarken günün yedeğini en son haliyle yenile
+        Context app = getApplicationContext();
+        new Thread(() -> AutoBackup.run(app, true)).start();
     }
 
     @Override
@@ -145,6 +157,16 @@ public class MainActivity extends Activity {
             }
             pendingExport = null;
             callJs("window.onExportDone && window.onExportDone(" + ok + ")");
+        } else if (requestCode == REQ_TREE) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                Uri tree = data.getData();
+                Context app = getApplicationContext();
+                new Thread(() -> {
+                    AutoBackup.setFolder(app, tree);
+                    AutoBackup.run(app, true);
+                    callJs("window.onBackupFolder && window.onBackupFolder()");
+                }).start();
+            }
         } else if (requestCode == REQ_IMPORT) {
             if (resultCode == RESULT_OK && data != null && data.getData() != null) {
                 try (InputStream is = getContentResolver().openInputStream(data.getData())) {
@@ -316,6 +338,38 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void openNotificationSettings() {
             runOnUiThread(MainActivity.this::openAppNotificationSettings);
+        }
+
+        @JavascriptInterface
+        public void chooseBackupFolder() {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                try {
+                    startActivityForResult(i, REQ_TREE);
+                } catch (Exception ignored) {
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String backupInfo() {
+            return AutoBackup.info(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void backupNow() {
+            Context app = getApplicationContext();
+            new Thread(() -> {
+                AutoBackup.run(app, true);
+                callJs("window.onBackupFolder && window.onBackupFolder()");
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void clearBackupFolder() {
+            AutoBackup.clearFolder(MainActivity.this);
         }
 
         @JavascriptInterface

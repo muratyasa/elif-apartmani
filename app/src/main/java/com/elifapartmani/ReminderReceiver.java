@@ -12,6 +12,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (Reminders.ACTION_DAILY.equals(a)) {
             Reminders.runCheck(context);
             Reminders.scheduleDaily(context);
+            AutoBackup.run(context, false);
         } else {
             Reminders.scheduleDaily(context);
             Reminders.runCheck(context);
