@@ -31,6 +31,8 @@ public class MainActivity extends Activity {
     private static final int REQ_EXPORT = 11;
     private static final int REQ_IMPORT = 12;
     private static final int REQ_NOTIF = 13;
+    private static final int REQ_CALL = 14;
+    private String pendingCall;
 
     static final String RELEASE_API = "https://api.github.com/repos/muratyasa/elif-apartmani/releases/latest";
 
@@ -66,6 +68,7 @@ public class MainActivity extends Activity {
 
         Reminders.ensureChannel(this);
         Reminders.scheduleDaily(this);
+        new Thread(() -> Reminders.runIfDue(getApplicationContext())).start();
 
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
@@ -90,6 +93,26 @@ public class MainActivity extends Activity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_NOTIF) callJs("window.onAppResume && window.onAppResume()");
+        if (requestCode == REQ_CALL && pendingCall != null) {
+            String n = pendingCall;
+            pendingCall = null;
+            boolean ok = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            startCall(n, ok);
+        }
+    }
+
+    /** İzin varsa doğrudan arar, yoksa numarayı tuşlanmış halde telefon uygulamasını açar. */
+    private void startCall(String phone, boolean direct) {
+        String n = phone.replaceAll("[^0-9+]", "");
+        try {
+            Intent i = new Intent(direct ? Intent.ACTION_CALL : Intent.ACTION_DIAL, Uri.parse("tel:" + n));
+            startActivity(i);
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + n)));
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     private void openExternal(Uri u) {
@@ -218,6 +241,24 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void call(String phone) {
+            runOnUiThread(() -> {
+                if (checkSelfPermission("android.permission.CALL_PHONE") == PackageManager.PERMISSION_GRANTED) {
+                    startCall(phone, true);
+                } else {
+                    pendingCall = phone;
+                    requestPermissions(new String[]{"android.permission.CALL_PHONE"}, REQ_CALL);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String notificationLog() {
+            String s = Storage.read(MainActivity.this, "bildirim_log.json");
+            return s.isEmpty() ? "[]" : s;
+        }
+
+        @JavascriptInterface
         public void dial(String phone) {
             try {
                 Intent i = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone));
@@ -279,8 +320,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void testNotification() {
-            Reminders.post(MainActivity.this, 999, "Deneme bildirimi",
-                    "Bildirimler çalışıyor. Ödeme günleri yaklaşınca böyle bir uyarı göreceksiniz.");
+            String t = "Deneme bildirimi";
+            String m = "Bildirimler çalışıyor. Ödeme günleri yaklaşınca böyle bir uyarı göreceksiniz.";
+            Reminders.post(MainActivity.this, 999, t, m);
+            Reminders.log(MainActivity.this, "deneme", t, m, null);
         }
     }
 

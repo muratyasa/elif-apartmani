@@ -11,6 +11,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         String a = intent == null ? null : intent.getAction();
         if (Reminders.ACTION_DAILY.equals(a)) {
             Reminders.runCheck(context);
+            Reminders.scheduleDaily(context);
         } else {
             Reminders.scheduleDaily(context);
             Reminders.runCheck(context);

@@ -18,7 +18,7 @@ function bosVeri() {
     daireler: [],
     odemeler: [],
     taksitler: [],
-    ayarlar: { hatirlatGun: [7, 1], gecikme: true, saat: 10 },
+    ayarlar: { hatirlatGun: [7, 1], gecikme: true, gecikmeSiklik: 1, saat: 10, bildirimGoruldu: '' },
     sonYedek: ''
   };
 }
@@ -118,8 +118,13 @@ function odenenToplam(tur, did, donem) {
   return IDX[tur + '|' + did + '|' + donem] || 0;
 }
 function kiraOdenen(did, ym) { return odenenToplam('kira', did, ym); }
+/* O ay dairede kiracı var mıydı? (şimdiki kiracı veya eski kiracıların dönemleri) */
+function kiraciDonemi(d, ym) {
+  if (!d.bos && ym >= baslangicAyi(d)) return true;
+  return (d.eskiKiracilar || []).some(function (k) { return ym >= (k.giris || '0000-00') && ym <= (k.cikis || '9999-99'); });
+}
 function kiraDurum(d, ym) {
-  if (d.bos || ym < baslangicAyi(d)) return { kod: 'yok', odenen: 0, kalan: 0, beklenen: 0, vade: '' };
+  if (!kiraciDonemi(d, ym)) return { kod: 'yok', odenen: 0, kalan: 0, beklenen: 0, vade: '' };
   var bek = +d.kira || 0, od = kiraOdenen(d.id, ym), kalan = Math.max(0, bek - od), vade = vadeGunu(d, ym), kod;
   if (bek <= 0) kod = od > 0 ? 'odendi' : 'tanimsiz';
   else if (kalan <= 0) kod = 'odendi';
@@ -165,19 +170,23 @@ function taksitAdi(t) { return (t.ad || 'Kömür taksiti') + ' · ' + tarihAdi(t
 function hatirlatmaListesi() {
   var A = DB.ayarlar, gun0 = bugun(), son = gunEkle(gun0, 90), kovalar = {};
   var gunler = (A.hatirlatGun || []).map(Number).filter(function (n) { return n >= 0; });
-  function ekle(tarih, tip, gunSayisi, satir) {
+  function ekle(tarih, tip, gunSayisi, d, txt) {
     if (tarih < gun0 || tarih > son) return;
     var k = tarih + '|' + tip + '|' + gunSayisi;
-    if (!kovalar[k]) kovalar[k] = { tarih: tarih, tip: tip, gun: gunSayisi, satirlar: [] };
-    kovalar[k].satirlar.push(satir);
+    if (!kovalar[k]) kovalar[k] = { tarih: tarih, tip: tip, gun: gunSayisi, satirlar: [], ids: [] };
+    kovalar[k].satirlar.push(kisi(d) + ' – ' + txt);
+    if (kovalar[k].ids.indexOf(d.id) < 0) kovalar[k].ids.push(d.id);
   }
-  /* Gecikme: ödeme gününden sonraki gün bir kez, sonra her pazartesi hepsi tek bildirimde */
-  var pazartesiler = [];
-  for (var t = gun0; t <= son; t = gunEkle(t, 1)) if (toDate(t).getDay() === 1) pazartesiler.push(t);
+  /* Gecikme: ödeme gününün ertesi günü, sonra seçilen sıklıkta (her gün / 3 günde bir / pazartesi) hepsi tek bildirimde */
+  var siklik = +A.gecikmeSiklik || 1, topluGunler = [];
+  for (var t = gun0; t <= son; t = gunEkle(t, 1)) {
+    var dd = toDate(t);
+    if (siklik === 1 || (siklik === 7 && dd.getDay() === 1) || (siklik === 3 && Math.floor(dd.getTime() / 86400000) % 3 === 0)) topluGunler.push(t);
+  }
   function gecikmeGunleri(vade) {
     var ilk = gunEkle(vade, 1), l = [];
     if (ilk >= gun0 && ilk <= son) l.push(ilk);
-    pazartesiler.forEach(function (p) { if (p > ilk) l.push(p); });
+    topluGunler.forEach(function (p) { if (p > ilk) l.push(p); });
     return l;
   }
   function kisi(d) { return 'Daire ' + d.no + (d.kiraci ? ' (' + d.kiraci + ')' : ''); }
@@ -186,19 +195,21 @@ function hatirlatmaListesi() {
     for (var i = -24; i <= 3; i++) {
       var ym = ayEkle(cur, i), k = kiraDurum(d, ym);
       if (k.kalan <= 0) continue;
-      gunler.forEach(function (g) { ekle(gunEkle(k.vade, -g), 'kira', g, kisi(d) + ' – ' + TL(k.kalan)); });
-      if (A.gecikme) gecikmeGunleri(k.vade).forEach(function (t) { ekle(t, 'kira-gec', 0, kisi(d) + ' – ' + ayAdi(ym) + ', ' + TL(k.kalan)); });
+      gunler.forEach(function (g) { ekle(gunEkle(k.vade, -g), 'kira', g, d, TL(k.kalan)); });
+      if (A.gecikme) gecikmeGunleri(k.vade).forEach(function (t) { ekle(t, 'kira-gec', 0, d, ayAdi(ym) + ', ' + TL(k.kalan)); });
     }
     DB.taksitler.forEach(function (tk) {
       var k = komurDurum(d, tk);
       if (k.kalan <= 0) return;
-      gunler.forEach(function (g) { ekle(gunEkle(tk.tarih, -g), 'komur', g, kisi(d) + ' – ' + TL(k.kalan)); });
-      if (A.gecikme) gecikmeGunleri(tk.tarih).forEach(function (t) { ekle(t, 'komur-gec', 0, kisi(d) + ' – ' + (tk.ad || 'kömür') + ', ' + TL(k.kalan)); });
+      gunler.forEach(function (g) { ekle(gunEkle(tk.tarih, -g), 'komur', g, d, TL(k.kalan)); });
+      if (A.gecikme) gecikmeGunleri(tk.tarih).forEach(function (t) { ekle(t, 'komur-gec', 0, d, (tk.ad || 'kömür') + ', ' + TL(k.kalan)); });
     });
+    if (!d.bos && d.sozlesmeBit) {
+      [30, 7, 0].forEach(function (g) { ekle(gunEkle(d.sozlesmeBit, -g), 'sozlesme', g, d, tarihAdi(d.sozlesmeBit)); });
+    }
   });
   return Object.keys(kovalar).sort().map(function (key) {
-    var b = kovalar[key], baslik, ust;
-    var n = b.satirlar.map(function (x) { return x.split(' – ')[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length;
+    var b = kovalar[key], n = b.ids.length, baslik, ust;
     var satirlar = b.satirlar.slice(0, 12);
     if (b.satirlar.length > 12) satirlar.push('… ve ' + (b.satirlar.length - 12) + ' kayıt daha');
     if (b.tip === 'kira') {
@@ -210,11 +221,14 @@ function hatirlatmaListesi() {
     } else if (b.tip === 'kira-gec') {
       baslik = 'Ödenmemiş kira · ' + n + ' daire';
       ust = 'Ödeme günü geçtiği halde kirası girilmemiş daireler:';
-    } else {
+    } else if (b.tip === 'komur-gec') {
       baslik = 'Ödenmemiş kömür · ' + n + ' daire';
       ust = 'Ödeme günü geçtiği halde kömür ödemesi girilmemiş daireler:';
+    } else {
+      baslik = (b.gun === 0 ? 'Bugün sözleşmesi bitiyor' : 'Sözleşme ' + b.gun + ' gün sonra bitiyor') + ' · ' + n + ' daire';
+      ust = 'Kira sözleşmesi bitenler:';
     }
-    return { tarih: b.tarih, baslik: baslik, metin: ust + '\n' + satirlar.join('\n') };
+    return { tarih: b.tarih, tur: b.tip, baslik: baslik, metin: ust + '\n' + satirlar.join('\n'), daireler: b.ids };
   });
 }
 function hatirlatmalariGonder() {
@@ -260,6 +274,7 @@ function ciz() {
   else html = { ozet: vOzet, daireler: vDaireler, komur: vKomur, gecmis: vGecmis, ayarlar: vAyarlar }[S.tab]();
   $('#main').innerHTML = html;
   $('#fab').hidden = S.tab === 'ayarlar' || !DB.daireler.length;
+  bildirimRozeti();
   guncellemeBandi();
 }
 
@@ -321,11 +336,11 @@ function vOzet() {
     h += '<div class="list">';
     geciken.forEach(function (x) {
       var aylar = x.b.map(function (b) { return ayKisa(b.ym); }).join(', ');
-      h += '<button type="button" class="row" data-act="daire-ac" data-id="' + x.d.id + '">' +
+      h += satirSar(x.d, '<button type="button" class="row" data-act="daire-ac" data-id="' + x.d.id + '">' +
         '<span class="no">' + esc(x.d.no) + '</span>' +
         '<span class="row-main"><span class="row-title">' + esc(x.d.kiraci || 'Kiracı girilmemiş') + '</span>' +
         '<span class="row-sub">' + x.b.length + ' ay: ' + esc(aylar) + '</span></span>' +
-        '<span class="row-end"><span class="amt bad">' + TL(x.toplam) + '</span></span></button>';
+        '<span class="row-end"><span class="amt bad">' + TL(x.toplam) + '</span></span></button>');
     });
     h += '</div>';
   }
@@ -336,11 +351,11 @@ function vOzet() {
   else {
     h += '<div class="list">';
     yaklasan.forEach(function (x) {
-      h += '<button type="button" class="row" data-act="daire-ac" data-id="' + x.d.id + '">' +
+      h += satirSar(x.d, '<button type="button" class="row" data-act="daire-ac" data-id="' + x.d.id + '">' +
         '<span class="no">' + esc(x.d.no) + '</span>' +
         '<span class="row-main"><span class="row-title">' + esc(x.d.kiraci || 'Kiracı girilmemiş') + '</span>' +
         '<span class="row-sub">' + esc(tarihAdi(x.k.vade, false)) + ' · ' + kalanGunMetni(x.g) + '</span></span>' +
-        '<span class="row-end"><span class="amt">' + TL(x.k.kalan) + '</span></span></button>';
+        '<span class="row-end"><span class="amt">' + TL(x.k.kalan) + '</span></span></button>');
     });
     h += '</div>';
   }
@@ -370,11 +385,11 @@ function daireSatiri(d, ay) {
   else if (k.kod === 'tanimsiz') sag = chip('tanimsiz');
   else sag = chip(k.kod) + '<span class="amt' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan > 0 ? k.kalan : k.beklenen) + '</span>';
   var alt = d.bos ? 'Boş daire' : (d.telefon ? esc(d.telefon) : 'Ödeme günü: ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i");
-  return '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '">' +
+  return satirSar(d, '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '">' +
     '<span class="no">' + esc(d.no) + '</span>' +
     '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
     '<span class="row-sub">' + alt + '</span></span>' +
-    '<span class="row-end">' + sag + '</span></button>';
+    '<span class="row-end">' + sag + '</span></button>');
 }
 function daireFiltreli() {
   var ay = S.ay, q = S.arama.trim().toLocaleLowerCase('tr');
@@ -384,7 +399,7 @@ function daireFiltreli() {
     if (S.filtre === 'odeyen' && k.kod !== 'odendi') return false;
     if (S.filtre === 'bos' && k.kod !== 'yok') return false;
     if (q) {
-      var metin = (d.no + ' ' + (d.kiraci || '') + ' ' + (d.telefon || '') + ' ' + (d.elkAbone || '') + ' ' + (d.elkTesisat || '')).toLocaleLowerCase('tr');
+      var metin = (d.no + ' ' + (d.kiraci || '') + ' ' + (d.telefon || '') + ' ' + (d.elkAbone || '') + ' ' + (d.elkTesisat || '') + ' ' + (d.telefon2 || '') + ' ' + (d.kefilAd || '') + ' ' + (d.eskiKiracilar || []).map(function (k) { return k.ad; }).join(' ')).toLocaleLowerCase('tr');
       if (metin.indexOf(q) < 0) return false;
     }
     return true;
@@ -512,7 +527,11 @@ function vAyarlar() {
       var on = (A.hatirlatGun || []).indexOf(s[0]) >= 0;
       return '<button type="button" class="filter' + (on ? ' on' : '') + '" data-act="hatirlat-gun" data-v="' + s[0] + '" aria-pressed="' + on + '">' + s[1] + '</button>';
     }).join('') + '</div></div>' +
-    '<label class="check"><input id="a-gecikme" type="checkbox" data-change="a-gecikme"' + (A.gecikme ? ' checked' : '') + '> Ödeme gecikirse ertesi gün ve her pazartesi hatırlat</label>' +
+    '<div class="field"><label for="a-gecikme">Ödeme gecikince ne sıklıkla hatırlatılsın?</label><select id="a-gecikme" data-change="a-gecikme">' +
+    [['0', 'Hatırlatma yapma'], ['1', 'Her gün (ödenene kadar)'], ['3', '3 günde bir'], ['7', 'Haftada bir (pazartesi)']].map(function (o) {
+      var sec = A.gecikme ? String(+A.gecikmeSiklik || 1) : '0';
+      return '<option value="' + o[0] + '"' + (sec === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('') + '</select></div>' +
     '<div class="field"><label for="a-saat">Bildirim saati</label><select id="a-saat" data-change="a-saat">';
   for (var s = 7; s <= 21; s++) h += '<option value="' + s + '"' + (+A.saat === s ? ' selected' : '') + '>' + pad(s) + ':00</option>';
   h += '</select></div>' +
@@ -547,10 +566,19 @@ function kopyala(metin, ad) {
     navigator.clipboard.writeText(String(metin)).then(bitti, function () { toast(String(metin)); });
   } catch (e) { toast(String(metin)); }
 }
-/* Değeri gösteren satır: yanında kopyala düğmesi, değere basılı tutunca da kopyalar */
-function kopyaSatiri(ad, deger) {
+var TEL_IKON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>';
+function araDugmesi(tel, ad) {
+  if (!tel) return '';
+  return '<button type="button" class="call-btn" data-act="ara" data-tel="' + esc(tel) + '" aria-label="' + esc((ad || 'Kiracı') + ' ara') + '">' + TEL_IKON + '</button>';
+}
+/* Listede satır + yanında telefon düğmesi */
+function satirSar(d, satirHtml) {
+  return '<div class="row-wrap">' + satirHtml + (d && !d.bos && d.telefon ? araDugmesi(d.telefon, d.kiraci) : '') + '</div>';
+}
+/* Değeri gösteren satır: yanında kopyala düğmesi, değere basılı tutunca da kopyalar; telefonsa arama düğmesi de */
+function kopyaSatiri(ad, deger, telefon) {
   return '<dt>' + esc(ad) + '</dt><dd class="kopya-dd"><span class="kopya" data-kopya="' + esc(deger) + '" data-ad="' + esc(ad) + '">' + esc(deger) + '</span>' +
-    '<button type="button" class="kopya-btn" data-act="kopyala" data-v="' + esc(deger) + '" data-ad="' + esc(ad) + '" aria-label="' + esc(ad) + ' kopyala">' + KOPYA_IKON + '</button></dd>';
+    '<button type="button" class="kopya-btn" data-act="kopyala" data-v="' + esc(deger) + '" data-ad="' + esc(ad) + '" aria-label="' + esc(ad) + ' kopyala">' + KOPYA_IKON + '</button>' + (telefon ? araDugmesi(deger, ad) : '') + '</dd>';
 }
 var KOPYA_IKON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>';
 
@@ -621,6 +649,7 @@ function sayfaCiz() {
   body.scrollTop = 0;
   el.hidden = false;
   if (s.hazir) s.hazir();
+  var ba = document.getElementById('b-ara'); if (ba && S.bAra) ba.value = S.bAra;
 }
 function yenile() { ciz(); if (YIGIN.length) sayfaCiz(); }
 
@@ -645,22 +674,36 @@ function daireSayfasi(id) {
       var d = daireBul(id);
       if (!d) return '<p class="empty">Bu daire silinmiş.</p>';
       var borc = kiraBorclari(d), borcTop = borc.reduce(function (t, x) { return t + x.kalan; }, 0);
+      var sozKalan = d.sozlesmeBit ? gunFark(bugun(), d.sozlesmeBit) : null;
       var h = '<section class="card">' +
-        '<div class="row-title" style="font-size:20px">' + esc(d.bos ? 'Boş daire' : (d.kiraci || 'Kiracı girilmemiş')) + '</div>' +
-        '<dl class="kv">' +
-        (d.telefon ? kopyaSatiri('Telefon', d.telefon) : '') +
-        (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '') +
-        (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '') +
-        '<dt>Aylık kira</dt><dd>' + TL(d.kira) + '</dd>' +
-        '<dt>Ödeme günü</dt><dd>Ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i</dd>" +
-        (d.baslangic ? '<dt>Kira başlangıcı</dt><dd>' + esc(ayAdi(d.baslangic)) + '</dd>' : '') +
-        '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
-        '</dl>' + (d.not ? '<p class="note">' + esc(d.not) + '</p>' : '') +
+        '<h2 class="card-title">' + (d.bos ? 'Daire boş' : 'Kiracı') + '</h2>' +
+        (d.bos ? '<p class="note">Şu an kiracı yok. Yeni kiracı geldiğinde “Yeni kiracı” ile bilgilerini girin.</p>' :
+          '<div class="tenant-head"><div class="row-title" style="font-size:20px">' + esc(d.kiraci || 'Kiracı adı girilmemiş') + '</div>' + araDugmesi(d.telefon, d.kiraci) + '</div>' +
+          '<dl class="kv">' +
+          (d.telefon ? kopyaSatiri('Telefon', d.telefon, true) : '') +
+          (d.telefon2 ? kopyaSatiri('Yakını / 2. telefon', d.telefon2, true) : '') +
+          (d.tc ? kopyaSatiri('TC kimlik no', d.tc) : '') +
+          '<dt>Giriş</dt><dd>' + esc(ayAdi(baslangicAyi(d))) + '</dd>' +
+          (d.sozlesmeBas ? '<dt>Sözleşme başlangıcı</dt><dd>' + esc(tarihAdi(d.sozlesmeBas)) + '</dd>' : '') +
+          (d.sozlesmeBit ? '<dt>Sözleşme bitişi</dt><dd' + (sozKalan !== null && sozKalan <= 30 ? ' style="color:var(--bad)"' : '') + '>' + esc(tarihAdi(d.sozlesmeBit)) +
+            (sozKalan !== null && sozKalan >= 0 && sozKalan <= 60 ? ' (' + kalanGunMetni(sozKalan) + ')' : '') + '</dd>' : '') +
+          (d.depozito ? '<dt>Depozito</dt><dd>' + TL(d.depozito) + '</dd>' : '') +
+          (d.kefilAd ? '<dt>Kefil</dt><dd>' + esc(d.kefilAd) + '</dd>' : '') +
+          (d.kefilTel ? kopyaSatiri('Kefil telefonu', d.kefilTel, true) : '') +
+          '</dl>' + (d.kiraciNot ? '<p class="note">' + esc(d.kiraciNot) + '</p>' : '')) +
         '<div class="actions">' +
         (!d.bos ? '<button type="button" class="btn" data-act="odeme-daire" data-id="' + d.id + '">Ödeme gir</button>' : '') +
-        (d.telefon ? '<button type="button" class="btn ghost" data-act="ara" data-tel="' + esc(d.telefon) + '">Ara</button>' : '') +
+        (d.bos ? '<button type="button" class="btn" data-act="kiraci-yeni" data-id="' + d.id + '">Yeni kiracı</button>' : '') +
         '<button type="button" class="btn ghost" data-act="daire-duzenle" data-id="' + d.id + '">Düzenle</button>' +
-        '</div></section>';
+        (!d.bos ? '<button type="button" class="btn ghost" data-act="kiraci-cikis" data-id="' + d.id + '">Kiracı çıktı</button>' : '') +
+        '</div></section>' +
+        '<section class="card"><h2 class="card-title">Daire</h2><dl class="kv">' +
+        '<dt>Aylık kira</dt><dd>' + TL(d.kira) + '</dd>' +
+        '<dt>Ödeme günü</dt><dd>Ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i</dd>" +
+        '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
+        (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '') +
+        (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '') +
+        '</dl>' + (d.not ? '<p class="note">' + esc(d.not) + '</p>' : '') + '</section>';
 
       var cur = buAy(), hucreler = '';
       for (var i = -10; i <= 1; i++) {
@@ -691,33 +734,65 @@ function daireSayfasi(id) {
       h += '<section class="card"><h2 class="card-title">Ödeme geçmişi</h2>';
       if (!od.length) h += '<p class="empty">Bu daire için henüz ödeme girilmemiş.</p>';
       else h += '<div class="list">' + od.slice(0, 60).map(function (o) { return odemeSatiri(o, false); }).join('') + '</div>';
-      return h + '</section>';
+      h += '</section>';
+      var eski = (d.eskiKiracilar || []).slice().reverse();
+      if (eski.length) {
+        h += '<section class="card"><h2 class="card-title">Eski kiracılar</h2><div class="list">';
+        eski.forEach(function (k) {
+          var borc = kiraBorclari(d).filter(function (b) { return b.ym >= k.giris && b.ym <= k.cikis; }).reduce(function (t, b) { return t + b.kalan; }, 0);
+          h += '<div class="row-wrap"><div class="row"><span class="row-main"><span class="row-title">' + esc(k.ad || 'İsimsiz') + '</span>' +
+            '<span class="row-sub">' + esc(ayAdi(k.giris)) + ' – ' + esc(ayAdi(k.cikis)) + (k.telefon ? ' · ' + esc(k.telefon) : '') + '</span></span>' +
+            '<span class="row-end">' + (borc ? '<span class="amt bad">' + TL(borc) + ' borç</span>' : chip('odendi')) + '</span></div>' +
+            araDugmesi(k.telefon, k.ad) + '</div>';
+        });
+        h += '</div></section>';
+      }
+      return h;
     }
   });
 }
 
-/* Daire ekle / düzenle */
-function daireFormu(id) {
+/* Daire ekle / düzenle (kiracı bilgileriyle) */
+function daireFormu(id, yeniKiraciMi) {
   var d = id ? daireBul(id) : null;
   sayfaAc({
-    baslik: function () { return d ? 'Daire ' + d.no + ' düzenle' : 'Yeni daire'; },
+    baslik: function () { return d ? 'Daire ' + d.no + (yeniKiraciMi ? ' · yeni kiracı' : ' düzenle') : 'Yeni daire'; },
     ciz: function () {
-      var x = d || { no: '', kiraci: '', telefon: '', kira: '', odemeGunu: 1, baslangic: '', bos: false, not: '' };
+      var x = d || { no: '', odemeGunu: 1, bos: false };
+      var yeniKiraci = !!yeniKiraciMi;
+      function alan(id, etiket, deger, ek) {
+        return '<div class="field"><label for="' + id + '">' + etiket + '</label><input id="' + id + '" value="' + esc(deger || '') + '"' + (ek || '') + '></div>';
+      }
       return '<div class="form">' +
-        '<div class="grid2"><div class="field"><label for="d-no">Daire no</label><input id="d-no" value="' + esc(x.no) + '" placeholder="Örn. 12 veya A-3"></div>' +
-        '<div class="field"><label for="d-gun">Ödeme günü</label><input id="d-gun" type="number" inputmode="numeric" min="1" max="31" value="' + esc(x.odemeGunu || 1) + '"></div></div>' +
+        '<h3 class="section-title">Kiracı</h3>' +
         '<label class="check"><input id="d-bos" type="checkbox"' + (x.bos ? ' checked' : '') + '> Daire şu an boş</label>' +
-        '<div class="field"><label for="d-kiraci">Kiracı adı</label><input id="d-kiraci" value="' + esc(x.kiraci) + '" autocomplete="off"></div>' +
-        '<div class="field"><label for="d-tel">Telefon</label><input id="d-tel" type="tel" value="' + esc(x.telefon) + '"></div>' +
-        '<div class="grid2"><div class="field"><label for="d-abone">Elektrik abone no</label><input id="d-abone" inputmode="numeric" value="' + esc(x.elkAbone || '') + '"></div>' +
-        '<div class="field"><label for="d-tesisat">Elektrik tesisat no</label><input id="d-tesisat" inputmode="numeric" value="' + esc(x.elkTesisat || '') + '"></div></div>' +
-        '<div class="grid2"><div class="field"><label for="d-kira">Aylık kira (₺)</label><input id="d-kira" inputmode="decimal" value="' + esc(x.kira || '') + '"></div>' +
-        '<div class="field"><label for="d-bas">Kira başlangıcı</label><input id="d-bas" type="month" value="' + esc(x.baslangic || '') + '"></div></div>' +
-        '<p class="note">Kira başlangıcı girilirse, o aydan önceki aylar borç olarak sayılmaz. Boş bırakırsanız daireyi eklediğiniz ay başlangıç kabul edilir.</p>' +
-        '<div class="field"><label for="d-not">Not</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
+        '<div id="kiraci-alanlari" class="form">' +
+        alan('d-kiraci', 'Ad soyad', x.kiraci, ' autocomplete="off"') +
+        '<div class="grid2">' + alan('d-tel', 'Telefon', x.telefon, ' type="tel"') + alan('d-tel2', 'Yakını / 2. telefon', x.telefon2, ' type="tel"') + '</div>' +
+        alan('d-tc', 'TC kimlik no', x.tc, ' inputmode="numeric" maxlength="11"') +
+        '<div class="grid2">' + alan('d-bas', 'Giriş ayı (kira bu aydan itibaren)', yeniKiraci ? buAy() : (x.baslangic || ''), ' type="month"') +
+        alan('d-depozito', 'Depozito (₺)', x.depozito || '', ' inputmode="decimal"') + '</div>' +
+        '<div class="grid2">' + alan('d-sozbas', 'Sözleşme başlangıcı', x.sozlesmeBas, ' type="date"') + alan('d-sozbit', 'Sözleşme bitişi', x.sozlesmeBit, ' type="date"') + '</div>' +
+        '<p class="note">Sözleşme bitişinden 30 gün ve 7 gün önce bildirim gelir.</p>' +
+        '<div class="grid2">' + alan('d-kefil', 'Kefil adı', x.kefilAd) + alan('d-kefiltel', 'Kefil telefonu', x.kefilTel, ' type="tel"') + '</div>' +
+        '<div class="field"><label for="d-kiracinot">Kiracı notu</label><textarea id="d-kiracinot">' + esc(x.kiraciNot || '') + '</textarea></div>' +
+        '</div>' +
+        '<h3 class="section-title">Daire</h3>' +
+        '<div class="grid2">' + alan('d-no', 'Daire no', x.no, ' placeholder="Örn. 12"') +
+        alan('d-gun', 'Kira ödeme günü', x.odemeGunu || 1, ' type="number" inputmode="numeric" min="1" max="31"') + '</div>' +
+        alan('d-kira', 'Aylık kira (₺)', x.kira || '', ' inputmode="decimal"') +
+        '<div class="grid2">' + alan('d-abone', 'Elektrik abone no', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
+        '<div class="field"><label for="d-not">Daire notu</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
         '<button type="button" class="btn block" data-act="daire-kaydet" data-id="' + (d ? d.id : '') + '">Kaydet</button>' +
         (d ? '<button type="button" class="btn danger block" data-act="daire-sil" data-id="' + d.id + '">Daireyi sil</button>' : '') +
         '</div>';
+    },
+    hazir: function () {
+      var cb = $('#d-bos');
+      if (yeniKiraciMi) cb.checked = false;
+      var guncelle = function () { $('#kiraci-alanlari').hidden = cb.checked; };
+      cb.addEventListener('change', guncelle);
+      guncelle();
     }
   });
 }
@@ -726,16 +801,119 @@ function daireKaydet(id) {
   if (!no) { toast('Daire no girin'); return; }
   var cakisan = DB.daireler.some(function (x) { return x.id !== id && String(x.no).toLocaleLowerCase('tr') === no.toLocaleLowerCase('tr'); });
   if (cakisan) { toast('Bu numarada başka bir daire var'); return; }
-  var gun = Math.min(31, Math.max(1, parseInt($('#d-gun').value, 10) || 1));
+  var tc = $('#d-tc').value.replace(/\s/g, '');
+  if (tc && !/^\d{11}$/.test(tc)) { toast('TC kimlik no 11 haneli olmalı'); return; }
+  var sozBas = $('#d-sozbas').value, sozBit = $('#d-sozbit').value;
+  if (sozBas && sozBit && sozBit < sozBas) { toast('Sözleşme bitişi başlangıçtan önce olamaz'); return; }
+  var mevcut = id ? daireBul(id) : null, bos = $('#d-bos').checked;
   var veri = {
-    no: no, odemeGunu: gun, bos: $('#d-bos').checked,
-    kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(),
-    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(),
-    kira: sayi($('#d-kira').value), baslangic: $('#d-bas').value || '', not: $('#d-not').value.trim()
+    no: no, odemeGunu: Math.min(31, Math.max(1, parseInt($('#d-gun').value, 10) || 1)), kira: sayi($('#d-kira').value),
+    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), not: $('#d-not').value.trim(), bos: bos
   };
-  if (id) Object.assign(daireBul(id), veri);
-  else DB.daireler.push(Object.assign({ id: yeniId(), olusturma: bugun() }, veri));
-  kaydet(); sayfaKapat(); yenile(); toast('Daire kaydedildi');
+  var kiraciVeri = {
+    kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(), telefon2: $('#d-tel2').value.trim(), tc: tc,
+    baslangic: $('#d-bas').value || '', depozito: sayi($('#d-depozito').value), sozlesmeBas: sozBas, sozlesmeBit: sozBit,
+    kefilAd: $('#d-kefil').value.trim(), kefilTel: $('#d-kefiltel').value.trim(), kiraciNot: $('#d-kiracinot').value.trim()
+  };
+  if (!bos) {
+    var eski = (mevcut && mevcut.eskiKiracilar) || [];
+    if (!kiraciVeri.baslangic && eski.length) kiraciVeri.baslangic = buAy();
+    var sonCikis = eski.length ? eski[eski.length - 1].cikis : '';
+    if (sonCikis && kiraciVeri.baslangic && kiraciVeri.baslangic <= sonCikis) { toast('Giriş ayı, önceki kiracının çıkış ayından sonra olmalı'); return; }
+    Object.assign(veri, kiraciVeri);
+  }
+  if (mevcut) Object.assign(mevcut, veri);
+  else DB.daireler.push(Object.assign({ id: yeniId(), olusturma: bugun(), eskiKiracilar: [] }, veri));
+  kaydet(); sayfaKapat(); yenile(); toast('Kaydedildi');
+}
+
+/* Kiracı çıkışı: bilgiler eski kiracılara taşınır, o aya kadarki borçlar takipte kalır */
+function kiraciCikisSayfasi(id) {
+  var d = daireBul(id);
+  sayfaAc({
+    baslik: function () { return 'Daire ' + d.no + ' · kiracı çıkışı'; },
+    ciz: function () {
+      return '<section class="card"><div class="row-title">' + esc(d.kiraci || 'Kiracı') + '</div>' +
+        '<p class="note">Kiracı bilgileri silinmez, “Eski kiracılar” bölümüne taşınır. Çıkış ayına kadar ödenmemiş kiralar borç olarak görünmeye devam eder.</p></section>' +
+        '<div class="form"><div class="field"><label for="c-ay">Kirasını ödeyeceği son ay</label><input id="c-ay" type="month" value="' + buAy() + '"></div>' +
+        '<button type="button" class="btn block" data-act="cikis-kaydet" data-id="' + d.id + '">Çıkışı kaydet</button></div>';
+    }
+  });
+}
+function kiraciCikisKaydet(id) {
+  var d = daireBul(id), cikis = $('#c-ay').value, giris = baslangicAyi(d);
+  if (!cikis) { toast('Son ayı seçin'); return; }
+  if (cikis < giris) { toast('Son ay, giriş ayından (' + ayAdi(giris) + ') önce olamaz'); return; }
+  d.eskiKiracilar = d.eskiKiracilar || [];
+  d.eskiKiracilar.push({
+    ad: d.kiraci || '', telefon: d.telefon || '', telefon2: d.telefon2 || '', tc: d.tc || '', giris: giris, cikis: cikis,
+    depozito: d.depozito || 0, sozlesmeBas: d.sozlesmeBas || '', sozlesmeBit: d.sozlesmeBit || '',
+    kefilAd: d.kefilAd || '', kefilTel: d.kefilTel || '', not: d.kiraciNot || ''
+  });
+  ['kiraci', 'telefon', 'telefon2', 'tc', 'baslangic', 'sozlesmeBas', 'sozlesmeBit', 'kefilAd', 'kefilTel', 'kiraciNot'].forEach(function (k) { d[k] = ''; });
+  d.depozito = 0; d.bos = true;
+  kaydet(); sayfaKapat(); yenile(); toast('Kiracı çıkışı kaydedildi');
+}
+
+/* ---------- Bildirim geçmişi ---------- */
+function bildirimKaydi() {
+  var raw = '';
+  try { raw = BR && BR.notificationLog ? BR.notificationLog() : ''; } catch (e) { raw = ''; }
+  try { var l = raw ? JSON.parse(raw) : []; return Array.isArray(l) ? l : []; } catch (e) { return []; }
+}
+function bildirimRozeti() {
+  var el = document.getElementById('bell-badge');
+  if (!el) return;
+  var gor = DB.ayarlar.bildirimGoruldu || '';
+  var n = bildirimKaydi().filter(function (x) { return (x.zaman || '') > gor; }).length;
+  el.textContent = n > 9 ? '9+' : String(n);
+  el.hidden = !n;
+}
+function bildirimKartiHtml(x, zamanMetni) {
+  var satirlar = String(x.metin || '').split('\n');
+  var ust = satirlar.shift();
+  var ids = x.daireler || [];
+  return '<section class="card notif">' +
+    '<div class="notif-time">' + esc(zamanMetni) + '</div>' +
+    '<div class="row-title">' + esc(x.baslik) + '</div>' +
+    '<p class="note">' + esc(ust) + '</p>' +
+    (satirlar.length ? '<ul class="notif-lines">' + satirlar.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' : '') +
+    (ids.length ? '<div class="daychips">' + ids.map(function (id) {
+      var d = daireBul(id); if (!d) return '';
+      return '<button type="button" class="filter" data-act="daire-ac" data-id="' + d.id + '">Daire ' + esc(d.no) + '</button>' +
+        (d.telefon && !d.bos ? araDugmesi(d.telefon, d.kiraci) : '');
+    }).join('') + '</div>' : '') +
+    '</section>';
+}
+function bildirimListesiHtml() {
+  var q = (S.bAra || '').trim().toLocaleLowerCase('tr');
+  var uyar = function (x) { return !q || (x.baslik + ' ' + x.metin).toLocaleLowerCase('tr').indexOf(q) >= 0; };
+  if (S.bSekme === 'yaklasan') {
+    var y = hatirlatmaListesi().filter(uyar).slice(0, 60);
+    if (!y.length) return '<p class="empty">Önümüzdeki 90 gün için planlanmış bildirim yok.</p>';
+    return y.map(function (x) { return bildirimKartiHtml(x, tarihAdi(x.tarih) + ', ' + pad(DB.ayarlar.saat) + ':00'); }).join('');
+  }
+  var l = bildirimKaydi().filter(uyar);
+  if (!l.length) return '<p class="empty">' + (q ? 'Aramaya uyan bildirim yok.' : 'Henüz gönderilmiş bildirim yok. Gelen her bildirim burada saklanır.') + '</p>';
+  return l.map(function (x) {
+    var z = x.zaman || '';
+    return bildirimKartiHtml(x, tarihAdi(z.slice(0, 10)) + (z.length > 11 ? ', ' + z.slice(11, 16) : ''));
+  }).join('');
+}
+function bildirimSayfasi() {
+  S.bSekme = S.bSekme || 'gecmis'; S.bAra = '';
+  var l = bildirimKaydi();
+  if (l.length && l[0].zaman) { DB.ayarlar.bildirimGoruldu = l[0].zaman; kaydet(); bildirimRozeti(); }
+  sayfaAc({
+    baslik: function () { return 'Bildirimler'; },
+    ciz: function () {
+      return '<div class="seg">' +
+        '<button type="button" data-act="b-sekme" data-v="gecmis" class="' + (S.bSekme === 'gecmis' ? 'on' : '') + '">Gelenler</button>' +
+        '<button type="button" data-act="b-sekme" data-v="yaklasan" class="' + (S.bSekme === 'yaklasan' ? 'on' : '') + '">Yaklaşanlar</button></div>' +
+        '<input id="b-ara" type="search" placeholder="Bildirimlerde ara (daire no, isim, ay)" aria-label="Bildirimlerde ara">' +
+        '<div id="b-liste" class="stack">' + bildirimListesiHtml() + '</div>';
+    }
+  });
 }
 
 /* Ödeme formu */
@@ -974,6 +1152,11 @@ var EYLEM = {
   'daire-ac': function (el) { daireSayfasi(el.dataset.id); },
   'daire-yeni': function () { daireFormu(null); },
   'abonelikler': function () { abonelikSayfasi(); },
+  'kiraci-yeni': function (el) { daireFormu(el.dataset.id, true); },
+  'kiraci-cikis': function (el) { kiraciCikisSayfasi(el.dataset.id); },
+  'cikis-kaydet': function (el) { kiraciCikisKaydet(el.dataset.id); },
+  'bildirimler': function () { bildirimSayfasi(); },
+  'b-sekme': function (el) { S.bSekme = el.dataset.v; sayfaCiz(); },
   'kopyala': function (el) { kopyala(el.dataset.v, el.dataset.ad); },
   'daire-duzenle': function (el) { daireFormu(el.dataset.id); },
   'daire-kaydet': function (el) { daireKaydet(el.dataset.id || null); },
@@ -985,7 +1168,7 @@ var EYLEM = {
       kaydet(); YIGIN = []; sayfaCiz(); ciz(); toast('Daire silindi');
     });
   },
-  'ara': function (el) { if (BR && BR.dial) BR.dial(el.dataset.tel); else toast(el.dataset.tel); },
+  'ara': function (el) { if (BR && BR.call) BR.call(el.dataset.tel); else if (BR && BR.dial) BR.dial(el.dataset.tel); else toast(el.dataset.tel); },
   'odeme-yeni': function () {
     var top = YIGIN[YIGIN.length - 1];
     odemeFormu(top && top.daireId ? { daireId: top.daireId } : {});
@@ -1056,7 +1239,7 @@ var EYLEM = {
 var DEGISIM = {
   'g-tur': function (el) { S.gTur = el.value; ciz(); },
   'g-daire': function (el) { S.gDaire = el.value; ciz(); },
-  'a-gecikme': function (el) { DB.ayarlar.gecikme = el.checked; kaydet(); ciz(); },
+  'a-gecikme': function (el) { var v = +el.value; DB.ayarlar.gecikme = v > 0; if (v) DB.ayarlar.gecikmeSiklik = v; kaydet(); ciz(); },
   'a-saat': function (el) { DB.ayarlar.saat = +el.value; kaydet(); toast('Bildirimler her gün ' + pad(el.value) + ':00 civarında gelir'); }
 };
 
@@ -1082,6 +1265,11 @@ function baslat() {
     if (el && DEGISIM[el.dataset.change]) DEGISIM[el.dataset.change](el);
   });
   document.addEventListener('input', function (e) {
+    if (e.target.id === 'b-ara') {
+      S.bAra = e.target.value;
+      var bl = document.getElementById('b-liste');
+      if (bl) bl.innerHTML = bildirimListesiHtml();
+    }
     if (e.target.id === 'arama') {
       S.arama = e.target.value;
       var l = document.getElementById('daire-listesi');

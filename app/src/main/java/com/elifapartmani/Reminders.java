@@ -69,7 +69,8 @@ final class Reminders {
         cal.set(Calendar.MILLISECOND, 0);
         if (cal.getTimeInMillis() <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_MONTH, 1);
         am.cancel(pi);
-        am.setInexactRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), AlarmManager.INTERVAL_DAY, pi);
+        // Tek seferlik, telefon uykudayken de çalışan alarm; her çalıştığında ertesi gün için yeniden kurulur
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
     }
 
     static String today() {
@@ -97,6 +98,7 @@ final class Reminders {
                         boolean kacirilan = !son.isEmpty() && tarih.compareTo(son) > 0 && tarih.compareTo(bugun) < 0;
                         if (bugunku || kacirilan) {
                             post(c, 100 + k, it.optString("baslik"), it.optString("metin"));
+                            log(c, it.optString("tur"), it.optString("baslik"), it.optString("metin"), it.optJSONArray("daireler"));
                             shown++;
                         }
                     }
@@ -105,6 +107,33 @@ final class Reminders {
         } catch (Exception ignored) {
         }
         sp.edit().putString("son_kontrol", bugun).apply();
+    }
+
+    /** Bugünün bildirim saati geçtiyse (telefon kapalıyken kaçırılmış olabilir) kontrolü hemen yapar. */
+    static void runIfDue(Context c) {
+        if (Calendar.getInstance().get(Calendar.HOUR_OF_DAY) >= hour(c)) runCheck(c);
+    }
+
+    /** Gönderilen her bildirimi uygulamadaki "Bildirimler" sayfası için saklar (en yeni başta, en fazla 400). */
+    static synchronized void log(Context c, String tur, String baslik, String metin, JSONArray daireler) {
+        try {
+            String raw = Storage.read(c, "bildirim_log.json");
+            JSONArray eski = raw.isEmpty() ? new JSONArray() : new JSONArray(raw);
+            JSONObject o = new JSONObject();
+            Calendar cal = Calendar.getInstance();
+            o.put("zaman", String.format(Locale.US, "%04d-%02d-%02d %02d:%02d:%02d",
+                    cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH),
+                    cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND)));
+            o.put("tur", tur == null ? "" : tur);
+            o.put("baslik", baslik);
+            o.put("metin", metin);
+            o.put("daireler", daireler == null ? new JSONArray() : daireler);
+            JSONArray yeni = new JSONArray();
+            yeni.put(o);
+            for (int i = 0; i < eski.length() && i < 399; i++) yeni.put(eski.get(i));
+            Storage.write(c, "bildirim_log.json", yeni.toString());
+        } catch (Exception ignored) {
+        }
     }
 
     static void post(Context c, int id, String title, String text) {
