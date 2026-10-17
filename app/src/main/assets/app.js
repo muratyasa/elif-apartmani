@@ -864,7 +864,7 @@ function daireFormu(id, yeniKiraciMi) {
         '<div class="grid2">' + alan('d-tel', 'Telefon', x.telefon, ' type="tel"') + alan('d-tel2', 'Yakını / 2. telefon', x.telefon2, ' type="tel"') + '</div>' +
         alan('d-tc', 'TC kimlik no', x.tc, ' inputmode="numeric" maxlength="11"') +
         '<div class="grid2">' + alan('d-bas', 'Giriş ayı (kira bu aydan itibaren)', yeniKiraci ? buAy() : (x.baslangic || ''), ' type="month"') +
-        alan('d-depozito', 'Depozito (₺)', x.depozito || '', ' inputmode="decimal"') + '</div>' +
+        alan('d-depozito', 'Depozito (₺)', x.depozito || '', ' inputmode="decimal" placeholder="Boşsa 1 kira bedeli"') + '</div>' +
         '<div class="grid2">' + alan('d-sozbas', 'Sözleşme başlangıcı', x.sozlesmeBas, ' type="date"') + alan('d-sozbit', 'Sözleşme bitişi', x.sozlesmeBit, ' type="date"') + '</div>' +
         '<p class="note">Sözleşme bitişinden 30 gün ve 7 gün önce bildirim gelir.</p>' +
         '<div class="grid2">' + alan('d-kefil', 'Kefil adı', x.kefilAd) + alan('d-kefiltel', 'Kefil telefonu', x.kefilTel, ' type="tel"') + '</div>' +
@@ -905,7 +905,7 @@ function daireKaydet(id) {
   };
   var kiraciVeri = {
     kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(), telefon2: $('#d-tel2').value.trim(), tc: tc,
-    baslangic: $('#d-bas').value || '', depozito: sayi($('#d-depozito').value), sozlesmeBas: sozBas, sozlesmeBit: sozBit,
+    baslangic: $('#d-bas').value || '', depozito: $('#d-depozito').value.trim() ? sayi($('#d-depozito').value) : sayi($('#d-kira').value), sozlesmeBas: sozBas, sozlesmeBit: sozBit,
     kefilAd: $('#d-kefil').value.trim(), kefilTel: $('#d-kefiltel').value.trim(), kiraciNot: $('#d-kiracinot').value.trim()
   };
   if (!bos) {
