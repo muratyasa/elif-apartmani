@@ -783,7 +783,7 @@ function daireSayfasi(id) {
           (d.sozlesmeBas ? '<dt>Sözleşme başlangıcı</dt><dd>' + esc(tarihAdi(d.sozlesmeBas)) + '</dd>' : '') +
           (d.sozlesmeBit ? '<dt>Sözleşme bitişi</dt><dd' + (sozKalan !== null && sozKalan <= 30 ? ' style="color:var(--bad)"' : '') + '>' + esc(tarihAdi(d.sozlesmeBit)) +
             (sozKalan !== null && sozKalan >= 0 && sozKalan <= 60 ? ' (' + kalanGunMetni(sozKalan) + ')' : '') + '</dd>' : '') +
-          (d.depozito ? '<dt>Depozito</dt><dd>' + TL(d.depozito) + '</dd>' : '') +
+          '<dt>Depozito</dt><dd>' + (d.depozito ? TL(d.depozito) : 'Tutar girilmemiş') + '</dd>' +
           (d.kefilAd ? '<dt>Kefil</dt><dd>' + esc(d.kefilAd) + '</dd>' : '') +
           (d.kefilTel ? kopyaSatiri('Kefil telefonu', d.kefilTel, true) : '') +
           '</dl>' + (d.kiraciNot ? '<p class="note">' + esc(d.kiraciNot) + '</p>' : '')) +
@@ -864,7 +864,7 @@ function daireFormu(id, yeniKiraciMi) {
         '<div class="grid2">' + alan('d-tel', 'Telefon', x.telefon, ' type="tel"') + alan('d-tel2', 'Yakını / 2. telefon', x.telefon2, ' type="tel"') + '</div>' +
         alan('d-tc', 'TC kimlik no', x.tc, ' inputmode="numeric" maxlength="11"') +
         '<div class="grid2">' + alan('d-bas', 'Giriş ayı (kira bu aydan itibaren)', yeniKiraci ? buAy() : (x.baslangic || ''), ' type="month"') +
-        alan('d-depozito', 'Depozito (₺)', x.depozito || '', ' inputmode="decimal" placeholder="Boşsa 1 kira bedeli"') + '</div>' +
+        alan('d-depozito', 'Depozito (₺)', x.depozito || '', ' inputmode="decimal" placeholder="Bilinmiyorsa boş bırakın"') + '</div>' +
         '<div class="grid2">' + alan('d-sozbas', 'Sözleşme başlangıcı', x.sozlesmeBas, ' type="date"') + alan('d-sozbit', 'Sözleşme bitişi', x.sozlesmeBit, ' type="date"') + '</div>' +
         '<p class="note">Sözleşme bitişinden 30 gün ve 7 gün önce bildirim gelir.</p>' +
         '<div class="grid2">' + alan('d-kefil', 'Kefil adı', x.kefilAd) + alan('d-kefiltel', 'Kefil telefonu', x.kefilTel, ' type="tel"') + '</div>' +
@@ -886,6 +886,13 @@ function daireFormu(id, yeniKiraciMi) {
       var guncelle = function () { $('#kiraci-alanlari').hidden = cb.checked; };
       cb.addEventListener('change', guncelle);
       guncelle();
+      if (yeniKiraciMi || !d) {
+        var dep = $('#d-depozito'), kira = $('#d-kira'), elle = false;
+        var oner = function () { if (!elle) dep.value = kira.value; };
+        dep.addEventListener('input', function () { elle = true; });
+        kira.addEventListener('input', oner);
+        oner();
+      }
     }
   });
 }
@@ -905,7 +912,7 @@ function daireKaydet(id) {
   };
   var kiraciVeri = {
     kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(), telefon2: $('#d-tel2').value.trim(), tc: tc,
-    baslangic: $('#d-bas').value || '', depozito: $('#d-depozito').value.trim() ? sayi($('#d-depozito').value) : sayi($('#d-kira').value), sozlesmeBas: sozBas, sozlesmeBit: sozBit,
+    baslangic: $('#d-bas').value || '', depozito: sayi($('#d-depozito').value), sozlesmeBas: sozBas, sozlesmeBit: sozBit,
     kefilAd: $('#d-kefil').value.trim(), kefilTel: $('#d-kefiltel').value.trim(), kiraciNot: $('#d-kiracinot').value.trim()
   };
   if (!bos) {
