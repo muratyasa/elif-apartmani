@@ -244,13 +244,15 @@ function esc(v) {
   });
 }
 var toastZamani = null;
-function toast(msg) {
+var toastGeriAl = null;
+function toast(msg, geriAl) {
   if (typeof document === 'undefined') return;
   var t = $('#toast');
-  t.textContent = msg;
+  toastGeriAl = geriAl || null;
+  t.innerHTML = '<span>' + esc(msg) + '</span>' + (geriAl ? '<button type="button" class="toast-btn" data-act="geri-al">Geri al</button>' : '');
   t.hidden = false;
   clearTimeout(toastZamani);
-  toastZamani = setTimeout(function () { t.hidden = true; }, 2600);
+  toastZamani = setTimeout(function () { t.hidden = true; toastGeriAl = null; }, geriAl ? 6000 : 2600);
 }
 function chip(kod) { return '<span class="chip ' + kod + '">' + DURUM[kod] + '</span>'; }
 
@@ -380,16 +382,16 @@ function vOzet() {
 }
 
 function daireSatiri(d, ay) {
-  var k = kiraDurum(d, ay), sag;
-  if (k.kod === 'yok') sag = chip('yok');
-  else if (k.kod === 'tanimsiz') sag = chip('tanimsiz');
-  else sag = chip(k.kod) + '<span class="amt' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan > 0 ? k.kalan : k.beklenen) + '</span>';
-  var alt = d.bos ? 'Boş daire' : (d.telefon ? esc(d.telefon) : 'Ödeme günü: ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i");
+  var k = kiraDurum(d, ay), durum;
+  if (k.kod === 'yok') durum = chip('yok');
+  else if (k.kod === 'tanimsiz') durum = chip('tanimsiz');
+  else durum = chip(k.kod) + ' <span class="amt' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan > 0 ? k.kalan : k.beklenen) + '</span>';
+  var hizli = (k.kod === 'bekliyor' || k.kod === 'gecikti' || k.kod === 'kismi') && k.kalan > 0
+    ? '<button type="button" class="paid-btn" data-act="hizli-odendi" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' ' + esc(ayAdi(ay)) + ' kirası ödendi">✓</button>' : '';
   return satirSar(d, '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '">' +
     '<span class="no">' + esc(d.no) + '</span>' +
     '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
-    '<span class="row-sub">' + alt + '</span></span>' +
-    '<span class="row-end">' + sag + '</span></button>');
+    '<span class="row-sub row-status">' + durum + '</span></span></button>' + hizli);
 }
 function daireFiltreli() {
   var ay = S.ay, q = S.arama.trim().toLocaleLowerCase('tr');
@@ -423,6 +425,7 @@ function vDaireler() {
     return '<button type="button" class="filter' + (S.filtre === x[0] ? ' on' : '') + '" data-act="filtre" data-v="' + x[0] + '">' + x[1] + ' <b>' + say[x[0]] + '</b></button>';
   }).join('') + '</div>' +
     '<input id="arama" type="search" placeholder="Daire no, kiracı, telefon veya abone no ara" value="' + esc(S.arama) + '" aria-label="Ara">' +
+    '<p class="note">Kirası tam ödenen dairede yeşil ✓ işaretine dokunun; ' + esc(ayAdi(S.ay)) + ' kirası bugünün tarihiyle kaydedilir.</p>' +
     '<section class="card"><div class="list" id="daire-listesi">' + daireListesiHtml() + '</div></section>' +
     '<div class="actions"><button type="button" class="btn ghost" data-act="abonelikler">Elektrik abonelikleri</button>' +
     '<button type="button" class="btn ghost" data-act="daire-yeni">+ Daire ekle</button></div>';
@@ -696,6 +699,7 @@ function daireSayfasi(id) {
         (d.bos ? '<button type="button" class="btn" data-act="kiraci-yeni" data-id="' + d.id + '">Yeni kiracı</button>' : '') +
         '<button type="button" class="btn ghost" data-act="daire-duzenle" data-id="' + d.id + '">Düzenle</button>' +
         (!d.bos ? '<button type="button" class="btn ghost" data-act="kiraci-cikis" data-id="' + d.id + '">Kiracı çıktı</button>' : '') +
+        '<button type="button" class="btn ghost" data-act="toplu-ac" data-id="' + d.id + '">Geçmişi toplu gir</button>' +
         '</div></section>' +
         '<section class="card"><h2 class="card-title">Daire</h2><dl class="kv">' +
         '<dt>Aylık kira</dt><dd>' + TL(d.kira) + '</dd>' +
@@ -825,6 +829,74 @@ function daireKaydet(id) {
   if (mevcut) Object.assign(mevcut, veri);
   else DB.daireler.push(Object.assign({ id: yeniId(), olusturma: bugun(), eskiKiracilar: [] }, veri));
   kaydet(); sayfaKapat(); yenile(); toast('Kaydedildi');
+}
+
+/* Geçmiş kiraları toplu "ödendi" girme */
+function topluAylar(d, bas, bit) {
+  var l = [];
+  if (!bas || !bit || bit < bas) return l;
+  for (var ym = bas; ym <= bit && l.length < 240; ym = ayEkle(ym, 1)) {
+    var k = kiraDurum(d, ym);
+    if (k.kalan > 0) l.push({ ym: ym, tutar: k.kalan, vade: k.vade });
+  }
+  return l;
+}
+function topluSayfasi(id) {
+  var d = daireBul(id);
+  var ilk = baslangicAyi(d);
+  (d.eskiKiracilar || []).forEach(function (k) { if (k.giris && k.giris < ilk) ilk = k.giris; });
+  if (ilk < '2000-01') ilk = ayEkle(buAy(), -12);
+  S.topluSekil = 'Nakit';
+  sayfaAc({
+    baslik: function () { return 'Daire ' + d.no + ' · geçmişi toplu gir'; },
+    ciz: function () {
+      var son = DB.odemeler.filter(function (o) { return o.daireId === d.id && o.toplu; })
+        .sort(function (a, b) { return a.kayit < b.kayit ? 1 : -1; })[0];
+      return '<section class="card"><p class="note">Seçtiğiniz aylar arasında kirası tam ödenmiş sayılacak aylar tek seferde kaydedilir. ' +
+        'Zaten ödenmiş aylar atlanır, kısmi ödenmiş ayların kalanı tamamlanır. Eksik ödenen bir ay varsa sonra o aya dokunup düzeltebilirsiniz.</p></section>' +
+        '<div class="form">' +
+        '<div class="grid2"><div class="field"><label for="t-bas">İlk ay</label><input id="t-bas" type="month" value="' + esc(ilk) + '"></div>' +
+        '<div class="field"><label for="t-bit">Son ay</label><input id="t-bit" type="month" value="' + esc(ayEkle(buAy(), -1)) + '"></div></div>' +
+        '<div class="field"><span class="lbl">Nasıl ödendi?</span><div class="seg" id="t-sekil">' +
+        ['Nakit', 'Banka'].map(function (x) { return '<button type="button" data-act="t-sekil" data-v="' + x + '" class="' + (S.topluSekil === x ? 'on' : '') + '">' + x + '</button>'; }).join('') +
+        '</div></div>' +
+        '<p class="note">Ödeme tarihi olarak her ayın kendi ödeme günü yazılır.</p>' +
+        '<section class="card"><div id="t-ozet" class="note"></div></section>' +
+        '<button type="button" class="btn block" data-act="toplu-kaydet" data-id="' + d.id + '">Kaydet</button>' +
+        (son ? '<button type="button" class="btn danger block" data-act="toplu-geri" data-id="' + d.id + '" data-t="' + son.toplu + '">Son toplu girişi geri al</button>' : '') +
+        '</div>';
+    },
+    hazir: function () {
+      var guncelle = function () {
+        var bas = $('#t-bas').value, bit = $('#t-bit').value, l = topluAylar(d, bas, bit), el = $('#t-ozet');
+        if (!bas || !bit) { el.textContent = 'İlk ve son ayı seçin.'; return; }
+        if (bit < bas) { el.textContent = 'Son ay, ilk aydan önce olamaz.'; return; }
+        var top = l.reduce(function (t, x) { return t + x.tutar; }, 0);
+        var uyari = bas < baslangicAyi(d) && !(d.eskiKiracilar || []).length
+          ? ' Kiracının giriş ayı ' + ayAdi(baslangicAyi(d)) + ' olarak kayıtlı, daha önceki aylar atlanır. Daha eskiye gitmek için Düzenle’den giriş ayını değiştirin.' : '';
+        el.textContent = l.length
+          ? l.length + ' ay kaydedilecek (' + ayAdi(l[0].ym) + ' – ' + ayAdi(l[l.length - 1].ym) + '), toplam ' + TL(top) + '.' + uyari
+          : 'Bu aralıkta kaydedilecek ödenmemiş ay yok.' + uyari;
+      };
+      $('#t-bas').addEventListener('change', guncelle);
+      $('#t-bit').addEventListener('change', guncelle);
+      guncelle();
+    }
+  });
+}
+function topluKaydet(id) {
+  var d = daireBul(id), l = topluAylar(d, $('#t-bas').value, $('#t-bit').value);
+  if (!l.length) { toast('Kaydedilecek ay yok'); return; }
+  var tid = yeniId(), simdi = new Date().toISOString(), gun0 = bugun();
+  l.forEach(function (x) {
+    DB.odemeler.push({ id: yeniId(), kayit: simdi, toplu: tid, daireId: d.id, tur: 'kira', donem: x.ym, tutar: x.tutar,
+      tarih: x.vade > gun0 ? gun0 : x.vade, sekil: S.topluSekil || 'Nakit', aciklama: '', not: 'Toplu giriş' });
+  });
+  kaydet(); sayfaKapat(); yenile();
+  toast(l.length + ' ayın kirası kaydedildi', function () {
+    DB.odemeler = DB.odemeler.filter(function (o) { return o.toplu !== tid; });
+    kaydet(); yenile(); toast('Toplu giriş geri alındı');
+  });
 }
 
 /* Kiracı çıkışı: bilgiler eski kiracılara taşınır, o aya kadarki borçlar takipte kalır */
@@ -1152,6 +1224,33 @@ var EYLEM = {
   'daire-ac': function (el) { daireSayfasi(el.dataset.id); },
   'daire-yeni': function () { daireFormu(null); },
   'abonelikler': function () { abonelikSayfasi(); },
+  'toplu-ac': function (el) { topluSayfasi(el.dataset.id); },
+  'toplu-kaydet': function (el) { topluKaydet(el.dataset.id); },
+  'toplu-geri': function (el) {
+    var tid = el.dataset.t, n = DB.odemeler.filter(function (o) { return o.toplu === tid; }).length;
+    onayla('Son toplu girişte kaydedilen ' + n + ' ödeme silinecek.', 'Geri al', function () {
+      DB.odemeler = DB.odemeler.filter(function (o) { return o.toplu !== tid; });
+      kaydet(); YIGIN.pop(); YIGIN.pop(); sayfaCiz(); ciz(); toast('Toplu giriş geri alındı');
+    });
+  },
+  't-sekil': function (el) {
+    S.topluSekil = el.dataset.v;
+    var b = document.querySelectorAll('#t-sekil button');
+    for (var i = 0; i < b.length; i++) b[i].classList.toggle('on', b[i].dataset.v === S.topluSekil);
+  },
+  'hizli-odendi': function (el) {
+    var d = daireBul(el.dataset.id), ym = S.ay, k = kiraDurum(d, ym);
+    if (!(k.kalan > 0)) return;
+    var oid = yeniId();
+    DB.odemeler.push({ id: oid, kayit: new Date().toISOString(), daireId: d.id, tur: 'kira', donem: ym, tutar: k.kalan,
+      tarih: bugun(), sekil: 'Nakit', aciklama: '', not: '' });
+    kaydet(); ciz();
+    toast('Daire ' + d.no + ' · ' + ayAdi(ym) + ' kirası ödendi (' + TL(k.kalan) + ')', function () {
+      DB.odemeler = DB.odemeler.filter(function (o) { return o.id !== oid; });
+      kaydet(); yenile(); toast('Geri alındı');
+    });
+  },
+  'geri-al': function () { var f = toastGeriAl; toastGeriAl = null; $('#toast').hidden = true; if (f) f(); },
   'kiraci-yeni': function (el) { daireFormu(el.dataset.id, true); },
   'kiraci-cikis': function (el) { kiraciCikisSayfasi(el.dataset.id); },
   'cikis-kaydet': function (el) { kiraciCikisKaydet(el.dataset.id); },
