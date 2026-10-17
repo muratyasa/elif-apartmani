@@ -163,9 +163,19 @@ function yuvarla(v, adim) { adim = +adim || 0; return adim > 0 ? Math.round(v / 
 function komurHesap(sez, kg) { return yuvarla((+kg || 0) / 1000 * (+sez.tonFiyati || 0), sez.yuvarla); }
 function komurOdenen(did, sz) { return odenenToplam('komur', did, sz); }
 /* Daireye o sezon yazılan kömür ve ödeme durumu; kömür yazılmamışsa null */
+/* Petek dağıtımı: toplam ton, bütün dairelerin toplam petek sayısına bölünür */
+function toplamPetek() { return DB.daireler.reduce(function (t, x) { return t + (parseInt(x.petek, 10) || 0); }, 0); }
+function petekBasinaKg(sez) {
+  var tp = toplamPetek();
+  return sez && +sez.toplamTon > 0 && tp > 0 ? (+sez.toplamTon * 1000) / tp : 0;
+}
 function komurDurum(d, sez) {
   if (!sez) return null;
   var e = (sez.daireler || {})[d.id];
+  var pb = petekBasinaKg(sez), petek = parseInt(d.petek, 10) || 0;
+  if ((!e || !(+e.kg > 0 || +e.tutar > 0)) && pb > 0 && petek > 0) {
+    e = { kg: Math.round(pb * petek * 10) / 10, tutar: null, otomatik: true };
+  }
   var od = komurOdenen(d.id, sez.sezon);
   if (!e || !(+e.kg > 0 || +e.tutar > 0)) {
     if (od > 0) return { kod: 'odendi', kg: 0, beklenen: od, odenen: od, kalan: 0 };
@@ -177,7 +187,7 @@ function komurDurum(d, sez) {
   else if (sez.sonOdeme && bugun() > sez.sonOdeme) kod = 'gecikti';
   else if (od > 0) kod = 'kismi';
   else kod = 'bekliyor';
-  return { kod: kod, kg: +e.kg || 0, beklenen: bek, odenen: od, kalan: kalan, elle: e.tutar !== null && e.tutar !== undefined && e.tutar !== '' };
+  return { kod: kod, kg: +e.kg || 0, beklenen: bek, odenen: od, kalan: kalan, otomatik: !!e.otomatik, elle: e.tutar !== null && e.tutar !== undefined && e.tutar !== '' };
 }
 function kgMetni(kg) { return NF.format(+kg || 0) + ' kg'; }
 
@@ -464,7 +474,10 @@ function vKomur() {
     var k = komurDurum(d, sez); if (!k) return;
     bek += k.beklenen; od += Math.min(k.odenen, k.beklenen); kg += k.kg; if (k.kalan > 0) borclu++;
   });
+  var pbk = petekBasinaKg(sez);
   h += '<dl class="kv"><dt>Ton fiyatı</dt><dd>' + TL(sez.tonFiyati) + '</dd>' +
+    (sez.toplamTon ? '<dt>Toplam alınan</dt><dd>' + NF.format(sez.toplamTon) + ' ton</dd>' : '') +
+    (pbk ? '<dt>Petek başına</dt><dd>' + NF.format(Math.round(pbk * 10) / 10) + ' kg</dd>' : '') +
     '<dt>Toplam yazılan</dt><dd>' + kgMetni(kg) + '</dd>' +
     '<dt>Toplanan</dt><dd>' + TL(od) + ' / ' + TL(bek) + '</dd>' +
     '<dt>Kalan</dt><dd style="color:' + (bek - od > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + TL(Math.max(0, bek - od)) + '</dd>' +
@@ -478,7 +491,7 @@ function vKomur() {
     var alt, durum;
     if (!k) { alt = 'Kömür yazılmamış'; durum = '<span class="row-sub">–</span>'; }
     else {
-      alt = (k.kg ? kgMetni(k.kg) + ' · ' : '') + TL(k.odenen) + ' / ' + TL(k.beklenen);
+      alt = (d.petek ? d.petek + ' petek · ' : '') + (k.kg ? kgMetni(k.kg) + (k.otomatik ? ' (petekten)' : '') + ' · ' : '') + TL(k.odenen) + ' / ' + TL(k.beklenen);
       durum = chip(k.kod) + (k.kalan > 0 ? ' <span class="amt' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan) + '</span>' : '');
     }
     var ode = k && k.kalan > 0 ? '<button type="button" class="paid-btn" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kömür ödemesi gir">₺</button>' : '';
@@ -505,6 +518,8 @@ function komurAyarSayfasi() {
           return '<option value="' + o[0] + '"' + (+x.yuvarla === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
         }).join('') + '</select></div>' +
         '<p class="note" id="ks-ornek"></p>' +
+        '<div class="field"><label for="ks-ton">Toplam alınan kömür (ton, isteğe bağlı)</label><input id="ks-ton" inputmode="decimal" value="' + esc(x.toplamTon || '') + '" placeholder="Örn. 60"></div>' +
+        '<p class="note" id="ks-petek"></p>' +
         '<div class="field"><label for="ks-son">Son ödeme günü (isteğe bağlı)</label><input id="ks-son" type="date" value="' + esc(x.sonOdeme || '') + '"></div>' +
         '<p class="note">Son ödeme günü girilirse, borcu kalan daireler için o güne göre hatırlatma gelir.</p>' +
         '<button type="button" class="btn block" data-act="komur-ayar-kaydet">Kaydet</button></div>';
@@ -514,6 +529,14 @@ function komurAyarSayfasi() {
         var f = sayi($('#ks-fiyat').value), y = +$('#ks-yuv').value;
         $('#ks-ornek').textContent = f ? 'Örnek: 1800 kg → ' + TL(yuvarla(1.8 * f, y)) : '';
       };
+      var petekNot = function () {
+        var ton = sayi($('#ks-ton').value), tp = toplamPetek();
+        $('#ks-petek').textContent = !tp ? 'Dairelerin petek sayısı girilirse toplam ton petek başına bölünür ve her dairenin kilosu kendiliğinden hesaplanır.'
+          : ton ? 'Toplam ' + tp + ' petek → petek başına ' + NF.format(Math.round(ton * 1000 / tp * 10) / 10) + ' kg. Kilosu elle girilmeyen dairelere petek sayısına göre pay verilir.'
+          : 'Toplam ' + tp + ' petek var. Toplam tonu girerseniz her dairenin kilosu petek sayısına göre hesaplanır.';
+      };
+      $('#ks-ton').addEventListener('input', petekNot);
+      petekNot();
       $('#ks-fiyat').addEventListener('input', ornek);
       $('#ks-yuv').addEventListener('change', ornek);
       ornek();
@@ -524,7 +547,7 @@ function komurAyarKaydet() {
   var f = sayi($('#ks-fiyat').value);
   if (!(f > 0)) { toast('Ton fiyatını girin'); return; }
   var sez = komurSezonAl(S.sezon);
-  sez.tonFiyati = f; sez.yuvarla = +$('#ks-yuv').value; sez.sonOdeme = $('#ks-son').value || '';
+  sez.tonFiyati = f; sez.yuvarla = +$('#ks-yuv').value; sez.sonOdeme = $('#ks-son').value || ''; sez.toplamTon = sayi($('#ks-ton').value);
   kaydet(); sayfaKapat(); yenile(); toast('Kömür fiyatı kaydedildi');
 }
 
@@ -543,6 +566,7 @@ function komurKgSayfasi(id) {
         '<div class="form">' +
         '<div class="field"><label for="kk-kg">Yazılan kömür (kg)</label><input id="kk-kg" inputmode="decimal" value="' + esc(e.kg || '') + '" placeholder="Örn. 1800"></div>' +
         '<p class="note" id="kk-hesap"></p>' +
+        (petekBasinaKg(sez) && d.petek ? '<p class="note">Boş bırakırsanız petek sayısına göre ' + kgMetni(Math.round(petekBasinaKg(sez) * d.petek * 10) / 10) + ' hesaplanır (' + d.petek + ' petek).</p>' : '') +
         '<label class="check"><input id="kk-elle" type="checkbox"' + (e.tutar !== undefined && e.tutar !== null && e.tutar !== '' ? ' checked' : '') + '> Tutarı elle gireceğim</label>' +
         '<div class="field" id="kk-tutar-alan"><label for="kk-tutar">Kömür borcu (₺)</label><input id="kk-tutar" inputmode="decimal" value="' + esc(e.tutar !== undefined && e.tutar !== null ? e.tutar : '') + '"></div>' +
         '<button type="button" class="btn block" data-act="komur-kg-kaydet" data-id="' + d.id + '">Kaydet</button>' +
@@ -801,6 +825,7 @@ function daireSayfasi(id) {
         '<section class="card"><h2 class="card-title">Daire</h2><dl class="kv">' +
         '<dt>Aylık kira</dt><dd>' + TL(d.kira) + '</dd>' +
         '<dt>Ödeme günü</dt><dd>Ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i</dd>" +
+        '<dt>Petek sayısı</dt><dd' + (d.petek ? '>' + d.petek : ' style="color:var(--muted)">Girilmemiş') + '</dd>' +
         '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
         (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '<dt>Elektrik abone no</dt><dd style="color:var(--bad)">Girilmemiş</dd>') +
         (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '') +
@@ -877,7 +902,8 @@ function daireFormu(id, yeniKiraciMi) {
         '<h3 class="section-title">Daire</h3>' +
         '<div class="grid2">' + alan('d-no', 'Daire no', x.no, ' placeholder="Örn. 12"') +
         alan('d-gun', 'Kira ödeme günü', x.odemeGunu || 1, ' type="number" inputmode="numeric" min="1" max="31"') + '</div>' +
-        alan('d-kira', 'Aylık kira (₺)', x.kira || '', ' inputmode="decimal"') +
+        '<div class="grid2">' + alan('d-kira', 'Aylık kira (₺)', x.kira || '', ' inputmode="decimal"') +
+        alan('d-petek', 'Petek sayısı', x.petek || '', ' type="number" inputmode="numeric" min="0" max="50"') + '</div>' +
         '<div class="grid2">' + alan('d-abone', 'Elektrik abone no (zorunlu)', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
         '<div class="field"><label for="d-not">Daire notu</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
         '<button type="button" class="btn block" data-act="daire-kaydet" data-id="' + (d ? d.id : '') + '">Kaydet</button>' +
@@ -913,7 +939,8 @@ function daireKaydet(id) {
   var mevcut = id ? daireBul(id) : null, bos = $('#d-bos').checked;
   var veri = {
     no: no, odemeGunu: Math.min(31, Math.max(1, parseInt($('#d-gun').value, 10) || 1)), kira: sayi($('#d-kira').value),
-    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), not: $('#d-not').value.trim(), bos: bos
+    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), not: $('#d-not').value.trim(), bos: bos,
+    petek: parseInt($('#d-petek').value, 10) || 0
   };
   var kiraciVeri = {
     kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(), telefon2: $('#d-tel2').value.trim(), tc: tc,
