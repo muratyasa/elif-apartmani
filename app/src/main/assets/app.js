@@ -312,7 +312,7 @@ function vKurulum() {
     '<p class="note">Önce daireleri oluşturalım. Kiracı adı, telefon ve kira tutarını sonra her dairenin içinden tek tek girebilirsiniz.</p>' +
     '<div class="form">' +
     '<div class="grid2">' +
-    '<div class="field"><label for="k-sayi">Daire sayısı</label><input id="k-sayi" type="number" inputmode="numeric" value="40" min="1" max="500"></div>' +
+    '<div class="field"><label for="k-sayi">Daire sayısı</label><input id="k-sayi" type="number" inputmode="numeric" value="33" min="1" max="500"></div>' +
     '<div class="field"><label for="k-gun">Kira ödeme günü</label><input id="k-gun" type="number" inputmode="numeric" value="1" min="1" max="31"></div>' +
     '</div>' +
     '<div class="field"><label for="k-kira">Aylık kira (hepsi için, boş bırakılabilir)</label><input id="k-kira" inputmode="decimal" placeholder="Örn. 6000"></div>' +
