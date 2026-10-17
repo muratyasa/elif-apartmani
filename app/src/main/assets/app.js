@@ -335,7 +335,11 @@ function vOzet() {
   geciken.sort(function (a, b) { return b.toplam - a.toplam; });
   yaklasan.sort(function (a, b) { return a.g - b.g || daireSirala(a.d, b.d); });
 
-  var h = '<section class="card">' +
+  var eksikAbone = DB.daireler.filter(function (d) { return !d.elkAbone; }).length;
+  var h = (eksikAbone ? '<section class="card"><div class="card-head"><h2 class="card-title">Eksik bilgi</h2>' +
+    '<button type="button" class="link" data-act="abonelikler">Tamamla</button></div>' +
+    '<p class="note warn">' + eksikAbone + ' dairenin elektrik abone numarası girilmemiş.</p></section>' : '') +
+    '<section class="card">' +
     '<h2 class="card-title">' + esc(ayAdi(ay)) + ' kirası</h2>' +
     '<div class="big">' + TL(od) + ' <small>/ ' + TL(bek) + '</small></div>' +
     '<div class="bar" role="img" aria-label="Yüzde ' + yuzde + ' toplandı"><i style="width:' + yuzde + '%"></i></div>' +
@@ -798,7 +802,7 @@ function daireSayfasi(id) {
         '<dt>Aylık kira</dt><dd>' + TL(d.kira) + '</dd>' +
         '<dt>Ödeme günü</dt><dd>Ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i</dd>" +
         '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
-        (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '') +
+        (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '<dt>Elektrik abone no</dt><dd style="color:var(--bad)">Girilmemiş</dd>') +
         (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '') +
         '</dl>' + (d.not ? '<p class="note">' + esc(d.not) + '</p>' : '') + '</section>';
 
@@ -874,7 +878,7 @@ function daireFormu(id, yeniKiraciMi) {
         '<div class="grid2">' + alan('d-no', 'Daire no', x.no, ' placeholder="Örn. 12"') +
         alan('d-gun', 'Kira ödeme günü', x.odemeGunu || 1, ' type="number" inputmode="numeric" min="1" max="31"') + '</div>' +
         alan('d-kira', 'Aylık kira (₺)', x.kira || '', ' inputmode="decimal"') +
-        '<div class="grid2">' + alan('d-abone', 'Elektrik abone no', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
+        '<div class="grid2">' + alan('d-abone', 'Elektrik abone no (zorunlu)', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
         '<div class="field"><label for="d-not">Daire notu</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
         '<button type="button" class="btn block" data-act="daire-kaydet" data-id="' + (d ? d.id : '') + '">Kaydet</button>' +
         (d ? '<button type="button" class="btn danger block" data-act="daire-sil" data-id="' + d.id + '">Daireyi sil</button>' : '') +
@@ -901,6 +905,7 @@ function daireKaydet(id) {
   if (!no) { toast('Daire no girin'); return; }
   var cakisan = DB.daireler.some(function (x) { return x.id !== id && String(x.no).toLocaleLowerCase('tr') === no.toLocaleLowerCase('tr'); });
   if (cakisan) { toast('Bu numarada başka bir daire var'); return; }
+  if (!$('#d-abone').value.trim()) { toast('Elektrik abone no girin, boş daire için de gerekli'); $('#d-abone').focus(); return; }
   var tc = $('#d-tc').value.replace(/\s/g, '');
   if (tc && !/^\d{11}$/.test(tc)) { toast('TC kimlik no 11 haneli olmalı'); return; }
   var sozBas = $('#d-sozbas').value, sozBit = $('#d-sozbit').value;
