@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Her GitHub derlemesi yeni bir sürüm numarası alır
+def surumNo = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+android {
+    namespace 'com.elifapartmani'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.elifapartmani"
+        minSdk 24
+        targetSdk 34
+        versionCode surumNo
+        versionName "1.0." + surumNo
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("../keystore/elif.jks")
+            storePassword "elifapt2026"
+            keyAlias "elif"
+            keyPassword "elifapt2026"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
