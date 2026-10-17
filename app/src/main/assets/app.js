@@ -421,7 +421,7 @@ function daireSatiri(d, ay) {
   return satirSar(d, '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '">' +
     '<span class="no">' + esc(d.no) + '</span>' +
     '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
-    '<span class="row-sub row-status">' + durum + '</span></span></button>' + hizli);
+    '<span class="row-sub row-status">' + durum + (d.petek ? ' <span class="info-chip">' + d.petek + ' petek</span>' : '') + '</span></span></button>' + hizli);
 }
 function daireFiltreli() {
   var ay = S.ay, q = S.arama.trim().toLocaleLowerCase('tr');
@@ -466,7 +466,8 @@ function vKomur() {
   h += '<section class="card"><div class="card-head"><h2 class="card-title">' + esc(S.sezon) + ' sezonu</h2>' +
     '<button type="button" class="link" data-act="komur-ayar">' + (sez ? 'Fiyatı düzenle' : 'Sezonu başlat') + '</button></div>';
   if (!sez) {
-    h += '<p class="empty">Bu sezon için kömür fiyatı girilmemiş. “Sezonu başlat” ile ton fiyatını girin, sonra her daireye kaç kilo yazıldığını ekleyin.</p></section>';
+    h += '<p class="empty">Bu sezon için kömür fiyatı girilmemiş. “Sezonu başlat” ile ton fiyatını girin, sonra her daireye kaç kilo yazıldığını ekleyin.</p></section>' +
+      '<button type="button" class="btn ghost block" data-act="komur-hesap">Kömür hesaplama aracı</button>';
     return h;
   }
   var bek = 0, od = 0, kg = 0, borclu = 0;
@@ -482,7 +483,8 @@ function vKomur() {
     '<dt>Toplanan</dt><dd>' + TL(od) + ' / ' + TL(bek) + '</dd>' +
     '<dt>Kalan</dt><dd style="color:' + (bek - od > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + TL(Math.max(0, bek - od)) + '</dd>' +
     (sez.sonOdeme ? '<dt>Son ödeme</dt><dd>' + esc(tarihAdi(sez.sonOdeme)) + '</dd>' : '') +
-    '</dl>' + (borclu ? '<p class="note">' + borclu + ' dairenin kömür borcu var.</p>' : '') + '</section>';
+    '</dl>' + (borclu ? '<p class="note">' + borclu + ' dairenin kömür borcu var.</p>' : '') +
+    '<button type="button" class="btn ghost block" data-act="komur-hesap">Kömür hesaplama aracı</button></section>';
 
   h += '<section class="card"><div class="card-head"><h2 class="card-title">Daireler</h2></div>' +
     '<p class="note">Daireye dokunarak kilo girin veya değiştirin. Ödeme almak için yanındaki yeşil düğmeye basın.</p><div class="list">';
@@ -549,6 +551,54 @@ function komurAyarKaydet() {
   var sez = komurSezonAl(S.sezon);
   sez.tonFiyati = f; sez.yuvarla = +$('#ks-yuv').value; sez.sonOdeme = $('#ks-son').value || ''; sez.toplamTon = sayi($('#ks-ton').value);
   kaydet(); sayfaKapat(); yenile(); toast('Kömür fiyatı kaydedildi');
+}
+
+/* Kömür hesaplama aracı: toplam ton × ton fiyatı, toplam petek sayısına bölünür */
+function komurHesapSayfasi() {
+  var sez = komurSezonBul(S.sezon) || {};
+  var tp = toplamPetek();
+  sayfaAc({
+    baslik: function () { return 'Kömür hesaplama'; },
+    ciz: function () {
+      return '<div class="form">' +
+        '<div class="grid2"><div class="field"><label for="kh-ton">Toplam kömür (ton)</label><input id="kh-ton" inputmode="decimal" value="' + esc(sez.toplamTon || '') + '"></div>' +
+        '<div class="field"><label for="kh-fiyat">Ton fiyatı (₺)</label><input id="kh-fiyat" inputmode="decimal" value="' + esc(sez.tonFiyati || '') + '"></div></div>' +
+        '<div class="field"><label for="kh-petek">Toplam petek sayısı</label><input id="kh-petek" type="number" inputmode="numeric" value="' + (tp || '') + '"></div>' +
+        (tp ? '<p class="note">Dairelere girilen petek sayılarının toplamı: ' + tp + '. İsterseniz değiştirip deneme hesabı yapabilirsiniz.</p>'
+          : '<p class="note">Dairelerin petek sayısı henüz girilmemiş. Toplamı elle yazabilirsiniz.</p>') +
+        '</div>' +
+        '<section class="card"><h2 class="card-title">Sonuç</h2><dl class="kv" id="kh-sonuc"></dl></section>' +
+        '<section class="card"><h2 class="card-title">Petek sayısına göre daire payı</h2><div id="kh-tablo"></div></section>' +
+        '<button type="button" class="btn block" data-act="kh-kaydet">' + esc(S.sezon) + ' sezonuna kaydet</button>' +
+        '<p class="note">Kaydedince ton fiyatı ve toplam ton bu sezona yazılır; kilosu elle girilmemiş her dairenin payı petek sayısına göre hesaplanır.</p>';
+    },
+    hazir: function () {
+      var hesapla = function () {
+        var ton = sayi($('#kh-ton').value), f = sayi($('#kh-fiyat').value), p = parseInt($('#kh-petek').value, 10) || 0;
+        var toplam = ton * f, kgP = p ? ton * 1000 / p : 0, tlP = p ? toplam / p : 0;
+        $('#kh-sonuc').innerHTML = '<dt>Toplam tutar</dt><dd>' + TL(Math.round(toplam)) + '</dd>' +
+          '<dt>Petek başına kömür</dt><dd>' + (p ? NF.format(Math.round(kgP * 10) / 10) + ' kg' : '–') + '</dd>' +
+          '<dt>Petek başına tutar</dt><dd>' + (p ? TL(Math.round(tlP)) : '–') + '</dd>';
+        var sayilar = [];
+        DB.daireler.forEach(function (d) { var n = parseInt(d.petek, 10) || 0; if (n && sayilar.indexOf(n) < 0) sayilar.push(n); });
+        if (!sayilar.length) sayilar = [2, 3, 4, 5, 6];
+        sayilar.sort(function (a, b) { return a - b; });
+        $('#kh-tablo').innerHTML = !p ? '<p class="empty">Toplam petek sayısını girin.</p>' : '<dl class="kv">' + sayilar.map(function (n) {
+          var kac = DB.daireler.filter(function (d) { return (parseInt(d.petek, 10) || 0) === n; }).length;
+          return '<dt>' + n + ' petek' + (kac ? ' (' + kac + ' daire)' : '') + '</dt><dd>' + NF.format(Math.round(kgP * n * 10) / 10) + ' kg · ' + TL(Math.round(tlP * n)) + '</dd>';
+        }).join('') + '</dl>';
+      };
+      ['kh-ton', 'kh-fiyat', 'kh-petek'].forEach(function (id) { document.getElementById(id).addEventListener('input', hesapla); });
+      hesapla();
+    }
+  });
+}
+function komurHesapKaydet() {
+  var ton = sayi($('#kh-ton').value), f = sayi($('#kh-fiyat').value);
+  if (!(f > 0)) { toast('Ton fiyatını girin'); return; }
+  var sez = komurSezonAl(S.sezon);
+  sez.tonFiyati = f; sez.toplamTon = ton;
+  kaydet(); sayfaKapat(); yenile(); toast(S.sezon + ' sezonu kaydedildi');
 }
 
 /* Bir daireye yazılan kömür */
@@ -1353,6 +1403,8 @@ var EYLEM = {
   'ay-hucre': function (el) { odemeFormu({ daireId: el.dataset.id, tur: 'kira', ay: el.dataset.ym }); },
   'komur-ode': function (el) { odemeFormu({ daireId: el.dataset.id, tur: 'komur', sezon: S.tab === 'komur' ? S.sezon : sezonu(bugun()) }); },
   'komur-ayar': function () { komurAyarSayfasi(); },
+  'komur-hesap': function () { komurHesapSayfasi(); },
+  'kh-kaydet': function () { komurHesapKaydet(); },
   'komur-ayar-kaydet': function () { komurAyarKaydet(); },
   'komur-kg': function (el) { komurKgSayfasi(el.dataset.id); },
   'komur-kg-kaydet': function (el) { komurKgKaydet(el.dataset.id); },

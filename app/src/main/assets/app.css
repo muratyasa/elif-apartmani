@@ -287,3 +287,5 @@ textarea { min-height: 80px; resize: vertical; }
 .paid-btn:active { background: var(--ok); color: #fff; }
 
 .row-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+
+.info-chip { font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; }
