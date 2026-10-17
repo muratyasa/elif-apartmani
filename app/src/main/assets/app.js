@@ -18,6 +18,7 @@ function bosVeri() {
     daireler: [],
     odemeler: [],
     taksitler: [],
+    komur: [],
     ayarlar: { hatirlatGun: [7, 1], gecikme: true, gecikmeSiklik: 1, saat: 10, bildirimGoruldu: '' },
     sonYedek: ''
   };
@@ -37,6 +38,7 @@ function normalize(o) {
   if (!Array.isArray(d.daireler)) d.daireler = [];
   if (!Array.isArray(d.odemeler)) d.odemeler = [];
   if (!Array.isArray(d.taksitler)) d.taksitler = [];
+  if (!Array.isArray(d.komur)) d.komur = [];
   IDX = null;
   return d;
 }
@@ -97,7 +99,6 @@ function sayi(v) {
 function daireSirala(a, b) { return String(a.no).localeCompare(String(b.no), 'tr', { numeric: true }); }
 function daireler() { return DB.daireler.slice().sort(daireSirala); }
 function daireBul(id) { for (var i = 0; i < DB.daireler.length; i++) if (DB.daireler[i].id === id) return DB.daireler[i]; return null; }
-function taksitBul(id) { for (var i = 0; i < DB.taksitler.length; i++) if (DB.taksitler[i].id === id) return DB.taksitler[i]; return null; }
 function daireAdi(d) { return d ? 'Daire ' + d.no : 'Silinmiş daire'; }
 
 function vadeGunu(d, ym) {
@@ -150,21 +151,35 @@ function ilkOdenmemisAy(d) {
   return cur;
 }
 
-function komurOdenen(did, tid) { return odenenToplam('komur', did, tid); }
-function komurDurum(d, t) {
-  if (d.bos) return { kod: 'yok', odenen: 0, kalan: 0, beklenen: 0 };
-  var bek = +t.tutar || 0, od = komurOdenen(d.id, t.id), kalan = Math.max(0, bek - od), kod;
+/* ---------- Kömür: her sezon bir ton fiyatı, her daireye kilo; borç = kilo × ton fiyatı ---------- */
+function komurSezonBul(sz) { for (var i = 0; i < DB.komur.length; i++) if (DB.komur[i].sezon === sz) return DB.komur[i]; return null; }
+function komurSezonAl(sz) {
+  var k = komurSezonBul(sz);
+  if (!k) { k = { sezon: sz, tonFiyati: 0, yuvarla: 100, sonOdeme: '', daireler: {} }; DB.komur.push(k); }
+  if (!k.daireler) k.daireler = {};
+  return k;
+}
+function yuvarla(v, adim) { adim = +adim || 0; return adim > 0 ? Math.round(v / adim) * adim : Math.round(v * 100) / 100; }
+function komurHesap(sez, kg) { return yuvarla((+kg || 0) / 1000 * (+sez.tonFiyati || 0), sez.yuvarla); }
+function komurOdenen(did, sz) { return odenenToplam('komur', did, sz); }
+/* Daireye o sezon yazılan kömür ve ödeme durumu; kömür yazılmamışsa null */
+function komurDurum(d, sez) {
+  if (!sez) return null;
+  var e = (sez.daireler || {})[d.id];
+  var od = komurOdenen(d.id, sez.sezon);
+  if (!e || !(+e.kg > 0 || +e.tutar > 0)) {
+    if (od > 0) return { kod: 'odendi', kg: 0, beklenen: od, odenen: od, kalan: 0 };
+    return null;
+  }
+  var bek = (e.tutar !== null && e.tutar !== undefined && e.tutar !== '') ? +e.tutar : komurHesap(sez, e.kg);
+  var kalan = Math.max(0, Math.round((bek - od) * 100) / 100), kod;
   if (kalan <= 0) kod = 'odendi';
-  else if (bugun() > t.tarih) kod = 'gecikti';
+  else if (sez.sonOdeme && bugun() > sez.sonOdeme) kod = 'gecikti';
   else if (od > 0) kod = 'kismi';
   else kod = 'bekliyor';
-  return { kod: kod, odenen: od, kalan: kalan, beklenen: bek };
+  return { kod: kod, kg: +e.kg || 0, beklenen: bek, odenen: od, kalan: kalan, elle: e.tutar !== null && e.tutar !== undefined && e.tutar !== '' };
 }
-function sezonTaksitleri(sz) {
-  return DB.taksitler.filter(function (t) { return sezonu(t.tarih) === sz; })
-    .sort(function (a, b) { return a.tarih < b.tarih ? -1 : 1; });
-}
-function taksitAdi(t) { return (t.ad || 'Kömür taksiti') + ' · ' + tarihAdi(t.tarih); }
+function kgMetni(kg) { return NF.format(+kg || 0) + ' kg'; }
 
 /* ---------- Bildirim listesi (telefon her gün buradan bakar) ---------- */
 function hatirlatmaListesi() {
@@ -198,11 +213,12 @@ function hatirlatmaListesi() {
       gunler.forEach(function (g) { ekle(gunEkle(k.vade, -g), 'kira', g, d, TL(k.kalan)); });
       if (A.gecikme) gecikmeGunleri(k.vade).forEach(function (t) { ekle(t, 'kira-gec', 0, d, ayAdi(ym) + ', ' + TL(k.kalan)); });
     }
-    DB.taksitler.forEach(function (tk) {
-      var k = komurDurum(d, tk);
-      if (k.kalan <= 0) return;
-      gunler.forEach(function (g) { ekle(gunEkle(tk.tarih, -g), 'komur', g, d, TL(k.kalan)); });
-      if (A.gecikme) gecikmeGunleri(tk.tarih).forEach(function (t) { ekle(t, 'komur-gec', 0, d, (tk.ad || 'kömür') + ', ' + TL(k.kalan)); });
+    DB.komur.forEach(function (sez) {
+      if (!sez.sonOdeme) return;
+      var k = komurDurum(d, sez);
+      if (!k || k.kalan <= 0) return;
+      gunler.forEach(function (g) { ekle(gunEkle(sez.sonOdeme, -g), 'komur', g, d, TL(k.kalan)); });
+      if (A.gecikme) gecikmeGunleri(sez.sonOdeme).forEach(function (t) { ekle(t, 'komur-gec', 0, d, sez.sezon + ' kömürü, ' + TL(k.kalan)); });
     });
     if (!d.bos && d.sozlesmeBit) {
       [30, 7, 0].forEach(function (g) { ekle(gunEkle(d.sozlesmeBit, -g), 'sozlesme', g, d, tarihAdi(d.sozlesmeBit)); });
@@ -363,20 +379,20 @@ function vOzet() {
   }
   h += '</section>';
 
-  var sz = sezonu(gun0), tk = sezonTaksitleri(sz);
-  if (tk.length) {
-    var kb = 0, ko = 0, kGec = 0;
-    tk.forEach(function (t) {
-      DB.daireler.forEach(function (d) {
-        var k = komurDurum(d, t); kb += k.beklenen; ko += Math.min(k.odenen, k.beklenen); if (k.kod === 'gecikti') kGec++;
-      });
+  var sz = sezonu(gun0), sez = komurSezonBul(sz);
+  if (sez) {
+    var kb = 0, ko = 0, kGec = 0, kBorclu = 0;
+    DB.daireler.forEach(function (d) {
+      var k = komurDurum(d, sez); if (!k) return;
+      kb += k.beklenen; ko += Math.min(k.odenen, k.beklenen);
+      if (k.kalan > 0) kBorclu++; if (k.kod === 'gecikti') kGec++;
     });
     var ky = kb ? Math.min(100, Math.round(ko / kb * 100)) : 0;
     h += '<section class="card"><div class="card-head"><h2 class="card-title">Kömür ' + esc(sz) + '</h2>' +
       '<button type="button" class="link" data-act="sekme" data-tab="komur">Ayrıntı</button></div>' +
       '<div class="big">' + TL(ko) + ' <small>/ ' + TL(kb) + '</small></div>' +
       '<div class="bar"><i style="width:' + ky + '%"></i></div>' +
-      (kGec ? '<p class="note warn">' + kGec + ' taksit ödemesi gecikmiş.</p>' : '') + '</section>';
+      '<div class="counts"><span><b>' + kBorclu + '</b> dairenin kömür borcu var</span>' + (kGec ? '<span><b>' + kGec + '</b> gecikti</span>' : '') + '</div></section>';
   }
   return h;
 }
@@ -432,50 +448,127 @@ function vDaireler() {
 }
 
 function vKomur() {
-  var tk = sezonTaksitleri(S.sezon), h = '';
-  h += '<section class="card"><div class="card-head"><h2 class="card-title">' + esc(S.sezon) + ' taksitleri</h2>' +
-    '<button type="button" class="link" data-act="taksit-yeni">+ Taksit ekle</button></div>';
-  if (!tk.length) {
-    h += '<p class="empty">Bu sezon için kömür taksiti girilmemiş. Taksit eklediğinizde her dairenin ödeyip ödemediğini buradan takip edebilirsiniz.</p>';
-  } else {
-    h += '<div class="list">';
-    tk.forEach(function (t) {
-      var odeyen = 0, gecikti = 0, toplam = 0, aktif = 0;
-      DB.daireler.forEach(function (d) {
-        var k = komurDurum(d, t); if (k.kod === 'yok') return;
-        aktif++; if (k.kod === 'odendi') odeyen++; if (k.kod === 'gecikti') gecikti++; toplam += Math.min(k.odenen, k.beklenen);
-      });
-      h += '<button type="button" class="row" data-act="taksit-ac" data-id="' + t.id + '">' +
-        '<span class="row-main"><span class="row-title">' + esc(t.ad || 'Kömür taksiti') + '</span>' +
-        '<span class="row-sub">' + esc(tarihAdi(t.tarih)) + ' · daire başı ' + TL(t.tutar) + '</span></span>' +
-        '<span class="row-end"><span class="amt">' + odeyen + '/' + aktif + ' ödedi</span>' +
-        (gecikti ? chip('gecikti') : '<span class="row-sub">' + TL(toplam) + '</span>') + '</span></button>';
-    });
-    h += '</div>';
+  var sez = komurSezonBul(S.sezon), h = '';
+  h += '<section class="card"><div class="card-head"><h2 class="card-title">' + esc(S.sezon) + ' sezonu</h2>' +
+    '<button type="button" class="link" data-act="komur-ayar">' + (sez ? 'Fiyatı düzenle' : 'Sezonu başlat') + '</button></div>';
+  if (!sez) {
+    h += '<p class="empty">Bu sezon için kömür fiyatı girilmemiş. “Sezonu başlat” ile ton fiyatını girin, sonra her daireye kaç kilo yazıldığını ekleyin.</p></section>';
+    return h;
   }
-  h += '</section>';
-  if (tk.length) {
-    h += '<section class="card"><h2 class="card-title">Daire bazında</h2><div class="list">';
-    daireler().forEach(function (d) {
-      if (d.bos) return;
-      var bek = 0, od = 0, gec = false;
-      tk.forEach(function (t) { var k = komurDurum(d, t); bek += k.beklenen; od += Math.min(k.odenen, k.beklenen); if (k.kod === 'gecikti') gec = true; });
-      var kod = od >= bek ? 'odendi' : (gec ? 'gecikti' : (od > 0 ? 'kismi' : 'bekliyor'));
-      h += '<button type="button" class="row" data-act="komur-daire" data-id="' + d.id + '">' +
-        '<span class="no">' + esc(d.no) + '</span>' +
-        '<span class="row-main"><span class="row-title">' + esc(d.kiraci || 'Kiracı girilmemiş') + '</span>' +
-        '<span class="row-sub">' + TL(od) + ' / ' + TL(bek) + '</span></span>' +
-        '<span class="row-end">' + chip(kod) + '</span></button>';
-    });
-    h += '</div></section>';
-  }
-  return h;
+  var bek = 0, od = 0, kg = 0, borclu = 0;
+  DB.daireler.forEach(function (d) {
+    var k = komurDurum(d, sez); if (!k) return;
+    bek += k.beklenen; od += Math.min(k.odenen, k.beklenen); kg += k.kg; if (k.kalan > 0) borclu++;
+  });
+  h += '<dl class="kv"><dt>Ton fiyatı</dt><dd>' + TL(sez.tonFiyati) + '</dd>' +
+    '<dt>Toplam yazılan</dt><dd>' + kgMetni(kg) + '</dd>' +
+    '<dt>Toplanan</dt><dd>' + TL(od) + ' / ' + TL(bek) + '</dd>' +
+    '<dt>Kalan</dt><dd style="color:' + (bek - od > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + TL(Math.max(0, bek - od)) + '</dd>' +
+    (sez.sonOdeme ? '<dt>Son ödeme</dt><dd>' + esc(tarihAdi(sez.sonOdeme)) + '</dd>' : '') +
+    '</dl>' + (borclu ? '<p class="note">' + borclu + ' dairenin kömür borcu var.</p>' : '') + '</section>';
+
+  h += '<section class="card"><div class="card-head"><h2 class="card-title">Daireler</h2></div>' +
+    '<p class="note">Daireye dokunarak kilo girin veya değiştirin. Ödeme almak için yanındaki yeşil düğmeye basın.</p><div class="list">';
+  daireler().forEach(function (d) {
+    var k = komurDurum(d, sez);
+    var alt, durum;
+    if (!k) { alt = 'Kömür yazılmamış'; durum = '<span class="row-sub">–</span>'; }
+    else {
+      alt = (k.kg ? kgMetni(k.kg) + ' · ' : '') + TL(k.odenen) + ' / ' + TL(k.beklenen);
+      durum = chip(k.kod) + (k.kalan > 0 ? ' <span class="amt' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan) + '</span>' : '');
+    }
+    var ode = k && k.kalan > 0 ? '<button type="button" class="paid-btn" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kömür ödemesi gir">₺</button>' : '';
+    h += satirSar(d, '<button type="button" class="row" data-act="komur-kg" data-id="' + d.id + '">' +
+      '<span class="no">' + esc(d.no) + '</span>' +
+      '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
+      '<span class="row-sub">' + esc(alt) + '</span>' +
+      '<span class="row-sub row-status">' + durum + '</span></span></button>' + ode);
+  });
+  return h + '</div></section>';
+}
+
+/* Sezon ayarı: ton fiyatı, yuvarlama, son ödeme günü */
+function komurAyarSayfasi() {
+  var mevcut = komurSezonBul(S.sezon);
+  sayfaAc({
+    baslik: function () { return S.sezon + ' kömür fiyatı'; },
+    ciz: function () {
+      var x = mevcut || { tonFiyati: '', yuvarla: 100, sonOdeme: '' };
+      return '<div class="form">' +
+        '<div class="field"><label for="ks-fiyat">Ton fiyatı (₺)</label><input id="ks-fiyat" inputmode="decimal" value="' + esc(x.tonFiyati || '') + '" placeholder="Örn. 16.390"></div>' +
+        '<div class="field"><label for="ks-yuv">Borç tutarı yuvarlansın mı?</label><select id="ks-yuv">' +
+        [[0, 'Yuvarlama (kuruşu kuruşuna)'], [10, 'En yakın 10 ₺'], [50, 'En yakın 50 ₺'], [100, 'En yakın 100 ₺']].map(function (o) {
+          return '<option value="' + o[0] + '"' + (+x.yuvarla === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+        }).join('') + '</select></div>' +
+        '<p class="note" id="ks-ornek"></p>' +
+        '<div class="field"><label for="ks-son">Son ödeme günü (isteğe bağlı)</label><input id="ks-son" type="date" value="' + esc(x.sonOdeme || '') + '"></div>' +
+        '<p class="note">Son ödeme günü girilirse, borcu kalan daireler için o güne göre hatırlatma gelir.</p>' +
+        '<button type="button" class="btn block" data-act="komur-ayar-kaydet">Kaydet</button></div>';
+    },
+    hazir: function () {
+      var ornek = function () {
+        var f = sayi($('#ks-fiyat').value), y = +$('#ks-yuv').value;
+        $('#ks-ornek').textContent = f ? 'Örnek: 1800 kg → ' + TL(yuvarla(1.8 * f, y)) : '';
+      };
+      $('#ks-fiyat').addEventListener('input', ornek);
+      $('#ks-yuv').addEventListener('change', ornek);
+      ornek();
+    }
+  });
+}
+function komurAyarKaydet() {
+  var f = sayi($('#ks-fiyat').value);
+  if (!(f > 0)) { toast('Ton fiyatını girin'); return; }
+  var sez = komurSezonAl(S.sezon);
+  sez.tonFiyati = f; sez.yuvarla = +$('#ks-yuv').value; sez.sonOdeme = $('#ks-son').value || '';
+  kaydet(); sayfaKapat(); yenile(); toast('Kömür fiyatı kaydedildi');
+}
+
+/* Bir daireye yazılan kömür */
+function komurKgSayfasi(id) {
+  var d = daireBul(id), sez = komurSezonBul(S.sezon);
+  if (!sez) { toast('Önce sezonun ton fiyatını girin'); komurAyarSayfasi(); return; }
+  var e = sez.daireler[d.id] || {};
+  sayfaAc({
+    baslik: function () { return 'Daire ' + d.no + ' · ' + sez.sezon + ' kömürü'; },
+    ciz: function () {
+      var k = komurDurum(d, sez);
+      return '<section class="card"><div class="row-title">' + esc(d.kiraci || (d.bos ? 'Boş daire' : 'Kiracı girilmemiş')) + '</div>' +
+        (k ? '<dl class="kv"><dt>Borç</dt><dd>' + TL(k.beklenen) + '</dd><dt>Ödenen</dt><dd>' + TL(k.odenen) + '</dd>' +
+          '<dt>Kalan</dt><dd style="color:' + (k.kalan > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + TL(k.kalan) + '</dd></dl>' : '') + '</section>' +
+        '<div class="form">' +
+        '<div class="field"><label for="kk-kg">Yazılan kömür (kg)</label><input id="kk-kg" inputmode="decimal" value="' + esc(e.kg || '') + '" placeholder="Örn. 1800"></div>' +
+        '<p class="note" id="kk-hesap"></p>' +
+        '<label class="check"><input id="kk-elle" type="checkbox"' + (e.tutar !== undefined && e.tutar !== null && e.tutar !== '' ? ' checked' : '') + '> Tutarı elle gireceğim</label>' +
+        '<div class="field" id="kk-tutar-alan"><label for="kk-tutar">Kömür borcu (₺)</label><input id="kk-tutar" inputmode="decimal" value="' + esc(e.tutar !== undefined && e.tutar !== null ? e.tutar : '') + '"></div>' +
+        '<button type="button" class="btn block" data-act="komur-kg-kaydet" data-id="' + d.id + '">Kaydet</button>' +
+        (k && k.kalan > 0 ? '<button type="button" class="btn ghost block" data-act="komur-ode" data-id="' + d.id + '">Kömür ödemesi gir</button>' : '') +
+        '</div>';
+    },
+    hazir: function () {
+      var g = function () {
+        var kg = sayi($('#kk-kg').value);
+        $('#kk-hesap').textContent = kg ? NF.format(kg / 1000) + ' ton × ' + TL(sez.tonFiyati) + ' = ' + TL(komurHesap(sez, kg)) : '';
+        $('#kk-tutar-alan').hidden = !$('#kk-elle').checked;
+      };
+      $('#kk-kg').addEventListener('input', g);
+      $('#kk-elle').addEventListener('change', g);
+      g();
+    }
+  });
+}
+function komurKgKaydet(id) {
+  var sez = komurSezonAl(S.sezon), kg = sayi($('#kk-kg').value), elle = $('#kk-elle').checked, tutar = sayi($('#kk-tutar').value);
+  if (elle && !(tutar >= 0)) { toast('Tutarı girin'); return; }
+  if (!kg && !(elle && tutar > 0)) delete sez.daireler[id];
+  else sez.daireler[id] = { kg: kg, tutar: elle ? tutar : null };
+  kaydet(); sayfaKapat(); yenile(); toast('Kaydedildi');
 }
 
 function odemeSatiri(o, daireGoster) {
   var d = daireBul(o.daireId), donem = '';
   if (o.tur === 'kira' && o.donem) donem = ayAdi(o.donem);
-  else if (o.tur === 'komur') { var t = taksitBul(o.donem); donem = t ? (t.ad || 'Kömür') : 'Kömür'; }
+  else if (o.tur === 'komur') donem = /^\d{4}-\d{4}$/.test(o.donem || '') ? o.donem + ' sezonu' : 'Kömür';
   else donem = o.aciklama || 'Diğer';
   var baslik = daireGoster ? daireAdi(d) + (d && d.kiraci ? ' · ' + d.kiraci : '') : TUR[o.tur] + ' · ' + donem;
   var alt = daireGoster ? TUR[o.tur] + ' · ' + donem : tarihAdi(o.tarih);
@@ -720,17 +813,13 @@ function daireSayfasi(id) {
       h += '<section class="card"><h2 class="card-title">Son 12 ay kira</h2><div class="months">' + hucreler + '</div>' +
         '<p class="note">Ödenmemiş bir aya dokunarak o ayın ödemesini girebilirsiniz.</p></section>';
 
-      var sz = sezonu(bugun()), tk = sezonTaksitleri(sz);
-      if (tk.length && !d.bos) {
-        h += '<section class="card"><h2 class="card-title">Kömür ' + esc(sz) + '</h2><div class="list">';
-        tk.forEach(function (t) {
-          var k = komurDurum(d, t);
-          h += '<button type="button" class="row" data-act="komur-ode" data-id="' + d.id + '" data-t="' + t.id + '">' +
-            '<span class="row-main"><span class="row-title">' + esc(t.ad || 'Kömür taksiti') + '</span>' +
-            '<span class="row-sub">' + esc(tarihAdi(t.tarih)) + '</span></span>' +
-            '<span class="row-end">' + chip(k.kod) + '<span class="amt">' + TL(k.kalan > 0 ? k.kalan : k.beklenen) + '</span></span></button>';
-        });
-        h += '</div></section>';
+      var kSez = komurSezonBul(sezonu(bugun())), kk = komurDurum(d, kSez);
+      if (kk) {
+        h += '<section class="card"><div class="card-head"><h2 class="card-title">Kömür ' + esc(kSez.sezon) + '</h2>' + chip(kk.kod) + '</div><dl class="kv">' +
+          (kk.kg ? '<dt>Yazılan</dt><dd>' + kgMetni(kk.kg) + '</dd>' : '') +
+          '<dt>Borç</dt><dd>' + TL(kk.beklenen) + '</dd><dt>Ödenen</dt><dd>' + TL(kk.odenen) + '</dd>' +
+          '<dt>Kalan</dt><dd style="color:' + (kk.kalan > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + TL(kk.kalan) + '</dd></dl>' +
+          (kk.kalan > 0 ? '<button type="button" class="btn ghost block" data-act="komur-ode" data-id="' + d.id + '">Kömür ödemesi gir</button>' : '') + '</section>';
       }
 
       var od = DB.odemeler.filter(function (o) { return o.daireId === d.id; })
@@ -1002,11 +1091,13 @@ function odemeFormu(on) {
   };
   var daireId = b.daireId || on.daireId || '';
   var ay = (b.tur === 'kira' && b.donem) || on.ay || (daireId && daireBul(daireId) ? ilkOdenmemisAy(daireBul(daireId)) : buAy());
-  var taksitId = (b.tur === 'komur' && b.donem) || on.taksitId || '';
+  var sezonSec = (b.tur === 'komur' && b.donem) || on.sezon || sezonu(bugun());
   sayfaAc({
     baslik: function () { return mevcut ? 'Ödemeyi düzenle' : 'Ödeme gir'; },
     ciz: function () {
-      var tumTaksit = DB.taksitler.slice().sort(function (x, y) { return x.tarih < y.tarih ? 1 : -1; });
+      var sezonlar = DB.komur.map(function (k) { return k.sezon; });
+      if (sezonlar.indexOf(sezonSec) < 0) sezonlar.push(sezonSec);
+      sezonlar.sort().reverse();
       return '<div class="form">' +
         '<div class="field"><label for="o-daire">Daire</label><select id="o-daire"><option value="">Daire seçin</option>' +
         daireler().map(function (d) {
@@ -1017,10 +1108,8 @@ function odemeFormu(on) {
           return '<button type="button" data-act="o-tur" data-v="' + t + '" class="' + (FORM.tur === t ? 'on' : '') + '">' + TUR[t] + '</button>';
         }).join('') + '</div></div>' +
         '<div class="field" id="f-ay"><label for="o-ay">Hangi ayın kirası?</label><input id="o-ay" type="month" value="' + esc(ay) + '"></div>' +
-        '<div class="field" id="f-taksit"><label for="o-taksit">Hangi kömür taksiti?</label>' +
-        (tumTaksit.length ? '<select id="o-taksit">' + tumTaksit.map(function (t) {
-          return '<option value="' + t.id + '"' + (t.id === taksitId ? ' selected' : '') + '>' + esc(taksitAdi(t)) + '</option>';
-        }).join('') + '</select>' : '<p class="note warn">Önce Kömür sekmesinden bir taksit ekleyin.</p>') + '</div>' +
+        '<div class="field" id="f-taksit"><label for="o-taksit">Hangi sezonun kömürü?</label><select id="o-taksit">' +
+        sezonlar.map(function (z) { return '<option value="' + z + '"' + (z === sezonSec ? ' selected' : '') + '>' + z + '</option>'; }).join('') + '</select></div>' +
         '<div class="field" id="f-aciklama"><label for="o-aciklama">Açıklama</label><input id="o-aciklama" value="' + esc(b.aciklama || '') + '" placeholder="Örn. aidat, tamir"></div>' +
         '<div class="grid2"><div class="field"><label for="o-tutar">Tutar (₺)</label><input id="o-tutar" inputmode="decimal" value="' + esc(b.tutar || '') + '"></div>' +
         '<div class="field"><label for="o-tarih">Ödeme tarihi</label><input id="o-tarih" type="date" value="' + esc(b.tarih || bugun()) + '"></div></div>' +
@@ -1060,8 +1149,9 @@ function tutarOner() {
       else if (k.beklenen) { kalan = k.kalan; metin = ayAdi(ym) + ': ' + TL(k.odenen) + ' ödendi, ' + TL(k.kalan) + ' kaldı.'; }
     }
   } else if (d && FORM.tur === 'komur') {
-    var sel = $('#o-taksit'), t = sel ? taksitBul(sel.value) : null;
-    if (t) { var kk = komurDurum(d, t); kalan = kk.kalan; metin = (t.ad || 'Taksit') + ': ' + TL(kk.odenen) + ' ödendi, ' + TL(kk.kalan) + ' kaldı.'; }
+    var sel = $('#o-taksit'), kz = sel ? komurSezonBul(sel.value) : null, kk = komurDurum(d, kz);
+    if (kk) { kalan = kk.kalan; metin = kz.sezon + ' kömürü: ' + TL(kk.beklenen) + ' borç, ' + TL(kk.odenen) + ' ödendi, ' + TL(kk.kalan) + ' kaldı.'; }
+    else metin = 'Bu daireye bu sezon kömür yazılmamış. Kömür sekmesinden kilosunu girebilirsiniz.';
   }
   ipucu.textContent = metin;
   ipucu.hidden = !metin;
@@ -1075,7 +1165,7 @@ function odemeKaydet() {
   if (FORM.tur === 'kira') { donem = $('#o-ay').value; if (!donem) { toast('Hangi ayın kirası olduğunu seçin'); return; } }
   if (FORM.tur === 'komur') {
     var sel = $('#o-taksit'); donem = sel ? sel.value : '';
-    if (!donem) { toast('Önce bir kömür taksiti ekleyin'); return; }
+    if (!donem) { toast('Sezonu seçin'); return; }
   }
   var veri = {
     daireId: did, tur: FORM.tur, donem: donem, tutar: tutar, tarih: tarih, sekil: FORM.sekil,
@@ -1089,58 +1179,6 @@ function odemeKaydet() {
   }
   kaydet(); sayfaKapat(); yenile();
   toast(FORM.id ? 'Ödeme güncellendi' : 'Ödeme kaydedildi');
-}
-
-/* Kömür taksitleri */
-function taksitFormu(id) {
-  var t = id ? taksitBul(id) : null;
-  sayfaAc({
-    baslik: function () { return t ? 'Taksiti düzenle' : 'Kömür taksiti ekle'; },
-    ciz: function () {
-      var sira = sezonTaksitleri(S.sezon).length + 1;
-      var x = t || { ad: sira + '. taksit', tarih: '', tutar: '' };
-      return '<div class="form">' +
-        '<div class="field"><label for="t-ad">Adı</label><input id="t-ad" value="' + esc(x.ad) + '"></div>' +
-        '<div class="grid2"><div class="field"><label for="t-tarih">Son ödeme günü</label><input id="t-tarih" type="date" value="' + esc(x.tarih) + '"></div>' +
-        '<div class="field"><label for="t-tutar">Daire başı tutar (₺)</label><input id="t-tutar" inputmode="decimal" value="' + esc(x.tutar) + '"></div></div>' +
-        '<p class="note">Bu tutar dolu olan her daireden beklenir. Bildirimler bu güne göre gönderilir.</p>' +
-        '<button type="button" class="btn block" data-act="taksit-kaydet" data-id="' + (t ? t.id : '') + '">Kaydet</button>' +
-        (t ? '<button type="button" class="btn danger block" data-act="taksit-sil" data-id="' + t.id + '">Taksiti sil</button>' : '') +
-        '</div>';
-    }
-  });
-}
-function taksitKaydet(id) {
-  var ad = $('#t-ad').value.trim(), tarih = $('#t-tarih').value, tutar = sayi($('#t-tutar').value);
-  if (!tarih) { toast('Son ödeme gününü seçin'); return; }
-  if (!(tutar > 0)) { toast('Tutar girin'); return; }
-  if (id) Object.assign(taksitBul(id), { ad: ad, tarih: tarih, tutar: tutar });
-  else DB.taksitler.push({ id: yeniId(), ad: ad, tarih: tarih, tutar: tutar });
-  S.sezon = sezonu(tarih);
-  kaydet(); sayfaKapat(); yenile(); toast('Taksit kaydedildi');
-}
-function taksitSayfasi(id) {
-  sayfaAc({
-    baslik: function () { var t = taksitBul(id); return t ? (t.ad || 'Kömür taksiti') : 'Taksit'; },
-    ciz: function () {
-      var t = taksitBul(id);
-      if (!t) return '<p class="empty">Bu taksit silinmiş.</p>';
-      var h = '<section class="card"><dl class="kv"><dt>Son ödeme günü</dt><dd>' + esc(tarihAdi(t.tarih)) + '</dd>' +
-        '<dt>Daire başı</dt><dd>' + TL(t.tutar) + '</dd></dl>' +
-        '<button type="button" class="btn ghost block" data-act="taksit-duzenle" data-id="' + t.id + '">Taksiti düzenle</button></section>' +
-        '<section class="card"><h2 class="card-title">Daireler</h2><div class="list">';
-      daireler().forEach(function (d) {
-        if (d.bos) return;
-        var k = komurDurum(d, t);
-        h += '<button type="button" class="row" data-act="komur-ode" data-id="' + d.id + '" data-t="' + t.id + '">' +
-          '<span class="no">' + esc(d.no) + '</span>' +
-          '<span class="row-main"><span class="row-title">' + esc(d.kiraci || 'Kiracı girilmemiş') + '</span>' +
-          '<span class="row-sub">' + TL(k.odenen) + ' ödendi</span></span>' +
-          '<span class="row-end">' + chip(k.kod) + '</span></button>';
-      });
-      return h + '</div></section>';
-    }
-  });
 }
 
 /* ---------- Yedek, dışa aktarma, güncelleme ---------- */
@@ -1171,7 +1209,7 @@ function csvAktar() {
   DB.odemeler.slice().sort(function (a, b) { return a.tarih < b.tarih ? -1 : 1; }).forEach(function (o) {
     var d = daireBul(o.daireId), donem = '';
     if (o.tur === 'kira') donem = o.donem ? ayAdi(o.donem) : '';
-    else if (o.tur === 'komur') { var t = taksitBul(o.donem); donem = t ? taksitAdi(t) : ''; }
+    else if (o.tur === 'komur') donem = (o.donem || '') + ' kömür';
     else donem = o.aciklama || '';
     satirlar.push([o.tarih, d ? d.no : '', d ? d.kiraci : '', TUR[o.tur], donem, String(o.tutar).replace('.', ','), o.sekil || '', o.not || '']);
   });
@@ -1274,12 +1312,11 @@ var EYLEM = {
   },
   'odeme-daire': function (el) { odemeFormu({ daireId: el.dataset.id }); },
   'ay-hucre': function (el) { odemeFormu({ daireId: el.dataset.id, tur: 'kira', ay: el.dataset.ym }); },
-  'komur-ode': function (el) { odemeFormu({ daireId: el.dataset.id, tur: 'komur', taksitId: el.dataset.t }); },
-  'komur-daire': function (el) {
-    var d = daireBul(el.dataset.id), tk = sezonTaksitleri(S.sezon), hedef = null;
-    tk.forEach(function (t) { if (!hedef && komurDurum(d, t).kalan > 0) hedef = t; });
-    odemeFormu({ daireId: d.id, tur: 'komur', taksitId: (hedef || tk[0]).id });
-  },
+  'komur-ode': function (el) { odemeFormu({ daireId: el.dataset.id, tur: 'komur', sezon: S.tab === 'komur' ? S.sezon : sezonu(bugun()) }); },
+  'komur-ayar': function () { komurAyarSayfasi(); },
+  'komur-ayar-kaydet': function () { komurAyarKaydet(); },
+  'komur-kg': function (el) { komurKgSayfasi(el.dataset.id); },
+  'komur-kg-kaydet': function (el) { komurKgKaydet(el.dataset.id); },
   'odeme-duzenle': function (el) { odemeFormu({ id: el.dataset.id }); },
   'o-tur': function (el) {
     FORM.tur = el.dataset.v;
@@ -1298,18 +1335,6 @@ var EYLEM = {
     onayla('Bu ödeme kaydı silinecek.', 'Ödemeyi sil', function () {
       DB.odemeler = DB.odemeler.filter(function (o) { return o.id !== id; });
       kaydet(); YIGIN.pop(); YIGIN.pop(); sayfaCiz(); ciz(); toast('Ödeme silindi');
-    });
-  },
-  'taksit-yeni': function () { taksitFormu(null); },
-  'taksit-ac': function (el) { taksitSayfasi(el.dataset.id); },
-  'taksit-duzenle': function (el) { taksitFormu(el.dataset.id); },
-  'taksit-kaydet': function (el) { taksitKaydet(el.dataset.id || null); },
-  'taksit-sil': function (el) {
-    var id = el.dataset.id, n = DB.odemeler.filter(function (o) { return o.tur === 'komur' && o.donem === id; }).length;
-    onayla('Bu taksit ve ona girilmiş ' + n + ' kömür ödemesi silinecek.', 'Taksiti sil', function () {
-      DB.taksitler = DB.taksitler.filter(function (t) { return t.id !== id; });
-      DB.odemeler = DB.odemeler.filter(function (o) { return !(o.tur === 'komur' && o.donem === id); });
-      kaydet(); YIGIN = []; sayfaCiz(); ciz(); toast('Taksit silindi');
     });
   },
   'onay-evet': function () { var s = YIGIN[YIGIN.length - 1]; if (s && s.onay) s.onay(); },
