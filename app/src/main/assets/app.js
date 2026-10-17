@@ -384,7 +384,7 @@ function daireFiltreli() {
     if (S.filtre === 'odeyen' && k.kod !== 'odendi') return false;
     if (S.filtre === 'bos' && k.kod !== 'yok') return false;
     if (q) {
-      var metin = (d.no + ' ' + (d.kiraci || '') + ' ' + (d.telefon || '')).toLocaleLowerCase('tr');
+      var metin = (d.no + ' ' + (d.kiraci || '') + ' ' + (d.telefon || '') + ' ' + (d.elkAbone || '') + ' ' + (d.elkTesisat || '')).toLocaleLowerCase('tr');
       if (metin.indexOf(q) < 0) return false;
     }
     return true;
@@ -407,9 +407,10 @@ function vDaireler() {
   return '<div class="filters">' + f.map(function (x) {
     return '<button type="button" class="filter' + (S.filtre === x[0] ? ' on' : '') + '" data-act="filtre" data-v="' + x[0] + '">' + x[1] + ' <b>' + say[x[0]] + '</b></button>';
   }).join('') + '</div>' +
-    '<input id="arama" type="search" placeholder="Daire no, kiracı veya telefon ara" value="' + esc(S.arama) + '" aria-label="Ara">' +
+    '<input id="arama" type="search" placeholder="Daire no, kiracı, telefon veya abone no ara" value="' + esc(S.arama) + '" aria-label="Ara">' +
     '<section class="card"><div class="list" id="daire-listesi">' + daireListesiHtml() + '</div></section>' +
-    '<button type="button" class="btn ghost block" data-act="daire-yeni">+ Daire ekle</button>';
+    '<div class="actions"><button type="button" class="btn ghost" data-act="abonelikler">Elektrik abonelikleri</button>' +
+    '<button type="button" class="btn ghost" data-act="daire-yeni">+ Daire ekle</button></div>';
 }
 
 function vKomur() {
@@ -537,6 +538,75 @@ function vAyarlar() {
   return h;
 }
 
+/* ---------- Kopyalama ---------- */
+function kopyala(metin, ad) {
+  if (!metin) return;
+  var bitti = function () { toast((ad || 'Metin') + ' kopyalandı'); };
+  if (BR && BR.copy) { BR.copy(ad || 'Elif Apartmanı', String(metin)); bitti(); return; }
+  try {
+    navigator.clipboard.writeText(String(metin)).then(bitti, function () { toast(String(metin)); });
+  } catch (e) { toast(String(metin)); }
+}
+/* Değeri gösteren satır: yanında kopyala düğmesi, değere basılı tutunca da kopyalar */
+function kopyaSatiri(ad, deger) {
+  return '<dt>' + esc(ad) + '</dt><dd class="kopya-dd"><span class="kopya" data-kopya="' + esc(deger) + '" data-ad="' + esc(ad) + '">' + esc(deger) + '</span>' +
+    '<button type="button" class="kopya-btn" data-act="kopyala" data-v="' + esc(deger) + '" data-ad="' + esc(ad) + '" aria-label="' + esc(ad) + ' kopyala">' + KOPYA_IKON + '</button></dd>';
+}
+var KOPYA_IKON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>';
+
+function abonelikSayfasi() {
+  sayfaAc({
+    baslik: function () { return 'Elektrik abonelikleri'; },
+    ciz: function () {
+      var l = daireler(), eksik = 0;
+      var h = '<p class="note">Numaranın yanındaki düğmeye dokunarak ya da numaraya basılı tutarak kopyalayabilirsiniz.</p>' +
+        '<section class="card"><div class="list">';
+      l.forEach(function (d) {
+        if (!d.elkAbone && !d.elkTesisat) eksik++;
+        h += '<div class="row abone-row">' +
+          '<button type="button" class="no" data-act="daire-ac" data-id="' + d.id + '">' + esc(d.no) + '</button>' +
+          '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
+          aboneSatiri('Abone', 'Elektrik abone no', d.elkAbone) + aboneSatiri('Tesisat', 'Elektrik tesisat no', d.elkTesisat) +
+          '</span></div>';
+      });
+      h += '</div></section>';
+      if (eksik) h += '<p class="note">' + eksik + ' dairenin abone numarası girilmemiş. Daireye dokunup Düzenle ile ekleyebilirsiniz.</p>';
+      return h;
+    }
+  });
+}
+function aboneSatiri(kisa, ad, deger) {
+  if (!deger) return '<span class="row-sub abone-line">' + kisa + ': –</span>';
+  return '<span class="row-sub abone-line">' + kisa + ': <span class="kopya" data-kopya="' + esc(deger) + '" data-ad="' + esc(ad) + '">' + esc(deger) + '</span>' +
+    '<button type="button" class="kopya-btn" data-act="kopyala" data-v="' + esc(deger) + '" data-ad="' + esc(ad) + '" aria-label="' + esc(ad) + ' kopyala">' + KOPYA_IKON + '</button></span>';
+}
+
+/* Basılı tutunca kopyala */
+function basiliTutKur() {
+  var zaman = null, hedef = null, x0 = 0, y0 = 0;
+  function iptal() { clearTimeout(zaman); zaman = null; if (hedef) hedef.classList.remove('basili'); hedef = null; }
+  document.addEventListener('touchstart', function (e) {
+    var el = e.target.closest ? e.target.closest('[data-kopya]') : null;
+    if (!el) return;
+    hedef = el; el.classList.add('basili');
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    zaman = setTimeout(function () {
+      var h = hedef; iptal();
+      if (h) { kopyala(h.dataset.kopya, h.dataset.ad); S.sonKopya = Date.now(); }
+    }, 550);
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!zaman) return;
+    var t = e.touches[0];
+    if (Math.abs(t.clientX - x0) > 10 || Math.abs(t.clientY - y0) > 10) iptal();
+  }, { passive: true });
+  document.addEventListener('touchend', iptal);
+  document.addEventListener('touchcancel', iptal);
+  document.addEventListener('contextmenu', function (e) {
+    if (e.target.closest && e.target.closest('[data-kopya]')) e.preventDefault();
+  });
+}
+
 /* ---------- Tam ekran sayfalar ---------- */
 var YIGIN = [];
 function sayfaAc(s) { YIGIN.push(s); sayfaCiz(); }
@@ -578,7 +648,9 @@ function daireSayfasi(id) {
       var h = '<section class="card">' +
         '<div class="row-title" style="font-size:20px">' + esc(d.bos ? 'Boş daire' : (d.kiraci || 'Kiracı girilmemiş')) + '</div>' +
         '<dl class="kv">' +
-        (d.telefon ? '<dt>Telefon</dt><dd>' + esc(d.telefon) + '</dd>' : '') +
+        (d.telefon ? kopyaSatiri('Telefon', d.telefon) : '') +
+        (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '') +
+        (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '') +
         '<dt>Aylık kira</dt><dd>' + TL(d.kira) + '</dd>' +
         '<dt>Ödeme günü</dt><dd>Ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i</dd>" +
         (d.baslangic ? '<dt>Kira başlangıcı</dt><dd>' + esc(ayAdi(d.baslangic)) + '</dd>' : '') +
@@ -637,6 +709,8 @@ function daireFormu(id) {
         '<label class="check"><input id="d-bos" type="checkbox"' + (x.bos ? ' checked' : '') + '> Daire şu an boş</label>' +
         '<div class="field"><label for="d-kiraci">Kiracı adı</label><input id="d-kiraci" value="' + esc(x.kiraci) + '" autocomplete="off"></div>' +
         '<div class="field"><label for="d-tel">Telefon</label><input id="d-tel" type="tel" value="' + esc(x.telefon) + '"></div>' +
+        '<div class="grid2"><div class="field"><label for="d-abone">Elektrik abone no</label><input id="d-abone" inputmode="numeric" value="' + esc(x.elkAbone || '') + '"></div>' +
+        '<div class="field"><label for="d-tesisat">Elektrik tesisat no</label><input id="d-tesisat" inputmode="numeric" value="' + esc(x.elkTesisat || '') + '"></div></div>' +
         '<div class="grid2"><div class="field"><label for="d-kira">Aylık kira (₺)</label><input id="d-kira" inputmode="decimal" value="' + esc(x.kira || '') + '"></div>' +
         '<div class="field"><label for="d-bas">Kira başlangıcı</label><input id="d-bas" type="month" value="' + esc(x.baslangic || '') + '"></div></div>' +
         '<p class="note">Kira başlangıcı girilirse, o aydan önceki aylar borç olarak sayılmaz. Boş bırakırsanız daireyi eklediğiniz ay başlangıç kabul edilir.</p>' +
@@ -656,6 +730,7 @@ function daireKaydet(id) {
   var veri = {
     no: no, odemeGunu: gun, bos: $('#d-bos').checked,
     kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(),
+    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(),
     kira: sayi($('#d-kira').value), baslangic: $('#d-bas').value || '', not: $('#d-not').value.trim()
   };
   if (id) Object.assign(daireBul(id), veri);
@@ -898,6 +973,8 @@ var EYLEM = {
   },
   'daire-ac': function (el) { daireSayfasi(el.dataset.id); },
   'daire-yeni': function () { daireFormu(null); },
+  'abonelikler': function () { abonelikSayfasi(); },
+  'kopyala': function (el) { kopyala(el.dataset.v, el.dataset.ad); },
   'daire-duzenle': function (el) { daireFormu(el.dataset.id); },
   'daire-kaydet': function (el) { daireKaydet(el.dataset.id || null); },
   'daire-sil': function (el) {
@@ -1011,6 +1088,7 @@ function baslat() {
       if (l) l.innerHTML = daireListesiHtml();
     }
   });
+  basiliTutKur();
   yukle();
   ciz();
   hatirlatmalariGonder();

@@ -1,6 +1,9 @@
 package com.elifapartmani;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -199,6 +202,14 @@ public class MainActivity extends Activity {
                 String arg = body == null ? "null" : JSONObject.quote(body);
                 callJs("window.onUpdateInfo && window.onUpdateInfo(" + arg + ")");
             }).start();
+        }
+
+        @JavascriptInterface
+        public void copy(String label, String text) {
+            runOnUiThread(() -> {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null) cm.setPrimaryClip(ClipData.newPlainText(label, text));
+            });
         }
 
         @JavascriptInterface
