@@ -431,7 +431,7 @@ function daireFiltreli() {
     if (S.filtre === 'odeyen' && k.kod !== 'odendi') return false;
     if (S.filtre === 'bos' && k.kod !== 'yok') return false;
     if (q) {
-      var metin = (d.no + ' ' + (d.kiraci || '') + ' ' + (d.telefon || '') + ' ' + (d.elkAbone || '') + ' ' + (d.elkTesisat || '') + ' ' + (d.telefon2 || '') + ' ' + (d.kefilAd || '') + ' ' + (d.eskiKiracilar || []).map(function (k) { return k.ad; }).join(' ')).toLocaleLowerCase('tr');
+      var metin = (d.no + ' ' + (d.kiraci || '') + ' ' + (d.telefon || '') + ' ' + (d.elkAbone || '') + ' ' + (d.elkTesisat || '') + ' ' + (d.suAbone || '') + ' ' + (d.telefon2 || '') + ' ' + (d.kefilAd || '') + ' ' + (d.eskiKiracilar || []).map(function (k) { return k.ad; }).join(' ')).toLocaleLowerCase('tr');
       if (metin.indexOf(q) < 0) return false;
     }
     return true;
@@ -457,7 +457,7 @@ function vDaireler() {
     '<input id="arama" type="search" placeholder="Daire no, kiracı, telefon veya abone no ara" value="' + esc(S.arama) + '" aria-label="Ara">' +
     '<p class="note">Kirası tam ödenen dairede yeşil ✓ işaretine dokunun; ' + esc(ayAdi(S.ay)) + ' kirası bugünün tarihiyle kaydedilir.</p>' +
     '<section class="card"><div class="list" id="daire-listesi">' + daireListesiHtml() + '</div></section>' +
-    '<div class="actions"><button type="button" class="btn ghost" data-act="abonelikler">Elektrik abonelikleri</button>' +
+    '<div class="actions"><button type="button" class="btn ghost" data-act="abonelikler">Abonelikler (elektrik, su)</button>' +
     '<button type="button" class="btn ghost" data-act="daire-yeni">+ Daire ekle</button></div>';
 }
 
@@ -773,7 +773,7 @@ var KOPYA_IKON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="curren
 
 function abonelikSayfasi() {
   sayfaAc({
-    baslik: function () { return 'Elektrik abonelikleri'; },
+    baslik: function () { return 'Abonelikler'; },
     ciz: function () {
       var l = daireler(), eksik = 0;
       var h = '<p class="note">Numaranın yanındaki düğmeye dokunarak ya da numaraya basılı tutarak kopyalayabilirsiniz.</p>' +
@@ -783,7 +783,7 @@ function abonelikSayfasi() {
         h += '<div class="row abone-row">' +
           '<button type="button" class="no" data-act="daire-ac" data-id="' + d.id + '">' + esc(d.no) + '</button>' +
           '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
-          aboneSatiri('Abone', 'Elektrik abone no', d.elkAbone) + aboneSatiri('Tesisat', 'Elektrik tesisat no', d.elkTesisat) +
+          aboneSatiri('Elektrik', 'Elektrik abone no', d.elkAbone) + aboneSatiri('Tesisat', 'Elektrik tesisat no', d.elkTesisat) + aboneSatiri('Su', 'Su abone no', d.suAbone) +
           '</span></div>';
       });
       h += '</div></section>';
@@ -894,6 +894,7 @@ function daireSayfasi(id) {
         '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
         (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '<dt>Elektrik abone no</dt><dd style="color:var(--bad)">Girilmemiş</dd>') +
         (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '') +
+        (d.suAbone ? kopyaSatiri('Su abone no', d.suAbone) : '<dt>Su abone no</dt><dd style="color:var(--muted)">Girilmemiş</dd>') +
         '</dl>' + (d.not ? '<p class="note">' + esc(d.not) + '</p>' : '') + '</section>';
 
       var cur = buAy(), hucreler = '';
@@ -970,6 +971,7 @@ function daireFormu(id, yeniKiraciMi) {
         '<div class="grid2">' + alan('d-kira', 'Aylık kira (₺)', x.kira || '', ' inputmode="decimal"') +
         alan('d-petek', 'Petek sayısı', x.petek || '', ' type="number" inputmode="numeric" min="0" max="50"') + '</div>' +
         '<div class="grid2">' + alan('d-abone', 'Elektrik abone no (zorunlu)', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
+        alan('d-su', 'Su abone no', x.suAbone, ' inputmode="numeric"') +
         '<div class="field"><label for="d-not">Daire notu</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
         '<button type="button" class="btn block" data-act="daire-kaydet" data-id="' + (d ? d.id : '') + '">Kaydet</button>' +
         (d ? '<button type="button" class="btn danger block" data-act="daire-sil" data-id="' + d.id + '">Daireyi sil</button>' : '') +
@@ -1004,7 +1006,7 @@ function daireKaydet(id) {
   var mevcut = id ? daireBul(id) : null, bos = $('#d-bos').checked;
   var veri = {
     no: no, odemeGunu: Math.min(31, Math.max(1, parseInt($('#d-gun').value, 10) || 1)), kira: sayi($('#d-kira').value),
-    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), not: $('#d-not').value.trim(), bos: bos,
+    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), suAbone: $('#d-su').value.trim(), not: $('#d-not').value.trim(), bos: bos,
     petek: parseInt($('#d-petek').value, 10) || 0
   };
   var kiraciVeri = {
