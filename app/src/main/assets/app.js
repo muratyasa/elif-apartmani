@@ -9,7 +9,7 @@ var APK_URL = 'https://github.com/muratyasa/elif-apartmani/releases/latest/downl
 var AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 var AYK = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 var DURUM = { odendi: 'Ödendi', gecikti: 'Gecikti', kismi: 'Kısmi', bekliyor: 'Bekliyor', yok: 'Boş', tanimsiz: 'Kira yok' };
-var TUR = { kira: 'Kira', komur: 'Kömür', diger: 'Diğer' };
+var TUR = { kira: 'Kira', aidat: 'Aidat', komur: 'Kömür', diger: 'Diğer' };
 
 /* ---------- Veri ---------- */
 function bosVeri() {
@@ -19,7 +19,7 @@ function bosVeri() {
     odemeler: [],
     taksitler: [],
     komur: [],
-    ayarlar: { hatirlatGun: [7, 1], gecikme: true, gecikmeSiklik: 1, saat: 10, bildirimGoruldu: '' },
+    ayarlar: { hatirlatGun: [7, 1], gecikme: true, gecikmeSiklik: 1, saat: 10, bildirimGoruldu: '', aidat: { yaz: 300, kis: 1300, kisBas: 10, kisBit: 4 } },
     sonYedek: ''
   };
 }
@@ -35,6 +35,7 @@ function normalize(o) {
   var b = bosVeri();
   var d = Object.assign(b, o || {});
   d.ayarlar = Object.assign(bosVeri().ayarlar, (o && o.ayarlar) || {});
+  d.ayarlar.aidat = Object.assign(bosVeri().ayarlar.aidat, (o && o.ayarlar && o.ayarlar.aidat) || {});
   if (!Array.isArray(d.daireler)) d.daireler = [];
   if (!Array.isArray(d.odemeler)) d.odemeler = [];
   if (!Array.isArray(d.taksitler)) d.taksitler = [];
@@ -124,7 +125,7 @@ function kiraciDonemi(d, ym) {
   if (!d.bos && ym >= baslangicAyi(d)) return true;
   return (d.eskiKiracilar || []).some(function (k) { return ym >= (k.giris || '0000-00') && ym <= (k.cikis || '9999-99'); });
 }
-function kiraDurum(d, ym) {
+function kiraTekDurum(d, ym) {
   if (!kiraciDonemi(d, ym)) return { kod: 'yok', odenen: 0, kalan: 0, beklenen: 0, vade: '' };
   var bek = +d.kira || 0, od = kiraOdenen(d.id, ym), kalan = Math.max(0, bek - od), vade = vadeGunu(d, ym), kod;
   if (bek <= 0) kod = od > 0 ? 'odendi' : 'tanimsiz';
@@ -133,6 +134,46 @@ function kiraDurum(d, ym) {
   else if (od > 0) kod = 'kismi';
   else kod = 'bekliyor';
   return { kod: kod, odenen: od, kalan: kalan, beklenen: bek, vade: vade };
+}
+/* Aidat: kış aylarında (varsayılan Ekim–Nisan) kış tutarı, diğer aylarda yaz tutarı. Daireye özel tutar girilebilir. */
+function kisAyiMi(ym) {
+  var A = DB.ayarlar.aidat || {}, m = +ym.slice(5), b = +A.kisBas || 10, e = +A.kisBit || 4;
+  return b <= e ? (m >= b && m <= e) : (m >= b || m <= e);
+}
+function aidatTutar(d, ym) {
+  var A = DB.ayarlar.aidat || {}, kis = kisAyiMi(ym);
+  var ozel = kis ? d.aidatKis : d.aidatYaz;
+  if (ozel !== undefined && ozel !== null && ozel !== '') return +ozel || 0;
+  return +(kis ? A.kis : A.yaz) || 0;
+}
+function aidatDurum(d, ym) {
+  if (!kiraciDonemi(d, ym)) return { kod: 'yok', odenen: 0, kalan: 0, beklenen: 0, vade: '' };
+  var bek = aidatTutar(d, ym), od = odenenToplam('aidat', d.id, ym), kalan = Math.max(0, bek - od), vade = vadeGunu(d, ym), kod;
+  if (bek <= 0) kod = 'odendi';
+  else if (kalan <= 0) kod = 'odendi';
+  else if (bugun() > vade) kod = 'gecikti';
+  else if (od > 0) kod = 'kismi';
+  else kod = 'bekliyor';
+  return { kod: kod, odenen: od, kalan: kalan, beklenen: bek, vade: vade };
+}
+/* Aylık ödeme = kira + aidat */
+function kiraDurum(d, ym) {
+  var k = kiraTekDurum(d, ym);
+  if (k.kod === 'yok') return k;
+  var a = aidatDurum(d, ym);
+  var bek = k.beklenen + a.beklenen, od = Math.min(k.odenen, k.beklenen || k.odenen) + Math.min(a.odenen, a.beklenen), kalan = k.kalan + a.kalan, kod;
+  if (bek <= 0) kod = k.kod;
+  else if (kalan <= 0) kod = (k.beklenen <= 0 && k.odenen <= 0) ? 'tanimsiz' : 'odendi';
+  else if (bugun() > k.vade) kod = 'gecikti';
+  else if (od > 0) kod = 'kismi';
+  else kod = 'bekliyor';
+  if (k.beklenen <= 0 && k.odenen <= 0 && kalan <= 0) kod = 'tanimsiz';
+  return { kod: kod, odenen: od, kalan: kalan, beklenen: bek, vade: k.vade, kira: k, aidat: a };
+}
+function dokum(k) {
+  if (!k.aidat || !k.aidat.kalan) return TL(k.kalan);
+  if (!k.kira.kalan) return TL(k.aidat.kalan) + ' aidat';
+  return TL(k.kalan) + ' (aidat dahil)';
 }
 /* Vadesi geçmiş, ödenmemiş aylar (en fazla 36 ay geriye) */
 function kiraBorclari(d) {
@@ -220,8 +261,8 @@ function hatirlatmaListesi() {
     for (var i = -24; i <= 3; i++) {
       var ym = ayEkle(cur, i), k = kiraDurum(d, ym);
       if (k.kalan <= 0) continue;
-      gunler.forEach(function (g) { ekle(gunEkle(k.vade, -g), 'kira', g, d, TL(k.kalan)); });
-      if (A.gecikme) gecikmeGunleri(k.vade).forEach(function (t) { ekle(t, 'kira-gec', 0, d, ayAdi(ym) + ', ' + TL(k.kalan)); });
+      gunler.forEach(function (g) { ekle(gunEkle(k.vade, -g), 'kira', g, d, dokum(k)); });
+      if (A.gecikme) gecikmeGunleri(k.vade).forEach(function (t) { ekle(t, 'kira-gec', 0, d, ayAdi(ym) + ', ' + dokum(k)); });
     }
     DB.komur.forEach(function (sez) {
       if (!sez.sonOdeme) return;
@@ -350,7 +391,7 @@ function vOzet() {
     '<button type="button" class="link" data-act="abonelikler">Tamamla</button></div>' +
     '<p class="note warn">' + eksikAbone + ' dairenin elektrik abone numarası girilmemiş.</p></section>' : '') +
     '<section class="card">' +
-    '<h2 class="card-title">' + esc(ayAdi(ay)) + ' kirası</h2>' +
+    '<h2 class="card-title">' + esc(ayAdi(ay)) + ' kira + aidat</h2>' +
     '<div class="big">' + TL(od) + ' <small>/ ' + TL(bek) + '</small></div>' +
     '<div class="bar" role="img" aria-label="Yüzde ' + yuzde + ' toplandı"><i style="width:' + yuzde + '%"></i></div>' +
     '<div class="counts"><span><b>' + c.odendi + '</b> ödedi</span>' +
@@ -645,7 +686,7 @@ function komurKgKaydet(id) {
 
 function odemeSatiri(o, daireGoster) {
   var d = daireBul(o.daireId), donem = '';
-  if (o.tur === 'kira' && o.donem) donem = ayAdi(o.donem);
+  if ((o.tur === 'kira' || o.tur === 'aidat') && o.donem) donem = ayAdi(o.donem);
   else if (o.tur === 'komur') donem = /^\d{4}-\d{4}$/.test(o.donem || '') ? o.donem + ' sezonu' : 'Kömür';
   else donem = o.aciklama || 'Diğer';
   var baslik = daireGoster ? daireAdi(d) + (d && d.kiraci ? ' · ' + d.kiraci : '') : TUR[o.tur] + ' · ' + donem;
@@ -666,7 +707,7 @@ function vGecmis() {
   var toplam = l.reduce(function (t, o) { return t + (+o.tutar || 0); }, 0);
   var h = '<div class="grid2">' +
     '<div class="field"><label for="g-tur">Tür</label><select id="g-tur" data-change="g-tur">' +
-    [['hepsi', 'Hepsi'], ['kira', 'Kira'], ['komur', 'Kömür'], ['diger', 'Diğer']].map(function (x) {
+    [['hepsi', 'Hepsi'], ['kira', 'Kira'], ['aidat', 'Aidat'], ['komur', 'Kömür'], ['diger', 'Diğer']].map(function (x) {
       return '<option value="' + x[0] + '"' + (S.gTur === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
     }).join('') + '</select></div>' +
     '<div class="field"><label for="g-daire">Daire</label><select id="g-daire" data-change="g-daire"><option value="">Hepsi</option>' +
@@ -718,6 +759,17 @@ function vAyarlar() {
 
   var oto = {};
   try { oto = BR && BR.backupInfo ? JSON.parse(BR.backupInfo()) : {}; } catch (e) { oto = {}; }
+  var AD = DB.ayarlar.aidat || {};
+  h += '<section class="card"><h2 class="card-title">Aidat (bütün daireler)</h2>' +
+    '<div class="grid2"><div class="field"><label for="ad-yaz">Normal aidat (₺)</label><input id="ad-yaz" inputmode="decimal" value="' + esc(AD.yaz || '') + '"></div>' +
+    '<div class="field"><label for="ad-kis">Kış aidatı (₺)</label><input id="ad-kis" inputmode="decimal" value="' + esc(AD.kis || '') + '"></div></div>' +
+    '<div class="grid2"><div class="field"><label for="ad-bas">Kış aidatı ilk ay</label><select id="ad-bas">' +
+    AYLAR.map(function (n, i) { return '<option value="' + (i + 1) + '"' + (+AD.kisBas === i + 1 ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
+    '<div class="field"><label for="ad-bit">Kış aidatı son ay</label><select id="ad-bit">' +
+    AYLAR.map(function (n, i) { return '<option value="' + (i + 1) + '"' + (+AD.kisBit === i + 1 ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div></div>' +
+    '<p class="note">Aidat her ay kirayla aynı gün beklenir. Bir dairenin aidatı farklıysa o dairenin Düzenle ekranından ayrıca girilebilir.</p>' +
+    '<button type="button" class="btn ghost block" data-act="aidat-kaydet">Aidatı kaydet</button></section>';
+
   h += '<section class="card"><h2 class="card-title">Otomatik yedek</h2>' +
     (oto.klasor
       ? '<p class="note">Her gün ve uygulamadan her çıkışta şu klasöre yedek alınıyor: <b>' + esc(oto.klasor) + '</b>. Son 30 günün yedeği saklanır.</p>' +
@@ -864,38 +916,45 @@ function daireSayfasi(id) {
       if (!d) return '<p class="empty">Bu daire silinmiş.</p>';
       var borc = kiraBorclari(d), borcTop = borc.reduce(function (t, x) { return t + x.kalan; }, 0);
       var sozKalan = d.sozlesmeBit ? gunFark(bugun(), d.sozlesmeBit) : null;
+      var bos = function (t) { return '<dd class="missing">' + (t || 'Girilmemiş') + '</dd>'; };
+      var kSz = komurSezonBul(sezonu(bugun())), kDu = komurDurum(d, kSz);
+      var ad0 = DB.ayarlar.aidat || {}, simdiKis = kisAyiMi(buAy());
+      var aidatMetin = d.bos ? '' : TL(aidatTutar(d, buAy())) + ' <small class="muted">(' + (simdiKis ? 'kış' : 'normal') + ')</small>';
       var h = '<section class="card">' +
-        '<h2 class="card-title">' + (d.bos ? 'Daire boş' : 'Kiracı') + '</h2>' +
-        (d.bos ? '<p class="note">Şu an kiracı yok. Yeni kiracı geldiğinde “Yeni kiracı” ile bilgilerini girin.</p>' :
-          '<div class="tenant-head"><div class="row-title" style="font-size:20px">' + esc(d.kiraci || 'Kiracı adı girilmemiş') + '</div>' + araDugmesi(d.telefon, d.kiraci) + '</div>' +
-          '<dl class="kv">' +
-          (d.telefon ? kopyaSatiri('Telefon', d.telefon, true) : '') +
-          (d.telefon2 ? kopyaSatiri('Yakını / 2. telefon', d.telefon2, true) : '') +
-          (d.tc ? kopyaSatiri('TC kimlik no', d.tc) : '') +
-          '<dt>Giriş</dt><dd>' + esc(ayAdi(baslangicAyi(d))) + '</dd>' +
-          (d.sozlesmeBas ? '<dt>Sözleşme başlangıcı</dt><dd>' + esc(tarihAdi(d.sozlesmeBas)) + '</dd>' : '') +
-          (d.sozlesmeBit ? '<dt>Sözleşme bitişi</dt><dd' + (sozKalan !== null && sozKalan <= 30 ? ' style="color:var(--bad)"' : '') + '>' + esc(tarihAdi(d.sozlesmeBit)) +
-            (sozKalan !== null && sozKalan >= 0 && sozKalan <= 60 ? ' (' + kalanGunMetni(sozKalan) + ')' : '') + '</dd>' : '') +
-          '<dt>Depozito</dt><dd>' + (d.depozito ? TL(d.depozito) : 'Tutar girilmemiş') + '</dd>' +
-          (d.kefilAd ? '<dt>Kefil</dt><dd>' + esc(d.kefilAd) + '</dd>' : '') +
-          (d.kefilTel ? kopyaSatiri('Kefil telefonu', d.kefilTel, true) : '') +
-          '</dl>' + (d.kiraciNot ? '<p class="note">' + esc(d.kiraciNot) + '</p>' : '')) +
+        '<div class="tenant-head"><div><h2 class="card-title">Daire bilgileri</h2>' +
+        '<div class="row-title" style="font-size:20px">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı adı girilmemiş')) + '</div></div>' +
+        (d.bos ? '' : araDugmesi(d.telefon, d.kiraci)) + '</div>' +
+        '<dl class="kv">' +
+        '<dt>Ad soyad</dt>' + (d.bos ? '<dd>Boş</dd>' : (d.kiraci ? '<dd>' + esc(d.kiraci) + '</dd>' : bos())) +
+        (d.telefon && !d.bos ? kopyaSatiri('Telefon', d.telefon, true) : '<dt>Telefon</dt>' + bos(d.bos ? '–' : '')) +
+        '<dt>Giriş tarihi</dt>' + (d.bos ? bos('–') : '<dd>' + esc(d.girisTarihi ? tarihAdi(d.girisTarihi) : ayAdi(baslangicAyi(d))) + '</dd>') +
+        '<dt>Aylık kira</dt>' + (+d.kira ? '<dd>' + TL(d.kira) + '</dd>' : bos()) +
+        '<dt>Aidat</dt>' + (d.bos ? bos('–') : '<dd>' + aidatMetin + '</dd>') +
+        '<dt>Depozito</dt>' + (d.bos ? bos('–') : (+d.depozito ? '<dd>' + TL(d.depozito) + '</dd>' : bos(d.depozitoAlindi ? 'Alındı, tutar yok' : ''))) +
+        (d.elkAbone ? kopyaSatiri('Elektrik abone', d.elkAbone) : '<dt>Elektrik abone</dt><dd class="missing bad">Girilmemiş</dd>') +
+        (d.suAbone ? kopyaSatiri('Su abone', d.suAbone) : '<dt>Su abone</dt>' + bos()) +
+        '<dt>Petek sayısı</dt>' + (d.petek ? '<dd>' + d.petek + '</dd>' : bos()) +
+        '<dt>Kömür' + (kSz ? ' ' + esc(kSz.sezon) : '') + '</dt>' + (kDu ? '<dd>' + TL(kDu.odenen) + ' / ' + TL(kDu.beklenen) + (kDu.kalan > 0 ? ' · <span style="color:var(--bad)">' + TL(kDu.kalan) + ' kaldı</span>' : ' ✓') + '</dd>' : bos(d.bos ? '–' : 'Yazılmamış')) +
+        '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
+        '</dl>' +
         '<div class="actions">' +
         (!d.bos ? '<button type="button" class="btn" data-act="odeme-daire" data-id="' + d.id + '">Ödeme gir</button>' : '') +
         (d.bos ? '<button type="button" class="btn" data-act="kiraci-yeni" data-id="' + d.id + '">Yeni kiracı</button>' : '') +
-        '<button type="button" class="btn ghost" data-act="daire-duzenle" data-id="' + d.id + '">Düzenle</button>' +
+        '<button type="button" class="btn ghost" data-act="daire-duzenle" data-id="' + d.id + '">Bilgileri düzenle</button>' +
+        '</div></section>';
+      var ekler = (d.telefon2 ? kopyaSatiri('Yakını / 2. telefon', d.telefon2, true) : '') +
+        (d.tc ? kopyaSatiri('TC kimlik no', d.tc) : '') +
+        (d.sozlesmeBas ? '<dt>Sözleşme başlangıcı</dt><dd>' + esc(tarihAdi(d.sozlesmeBas)) + '</dd>' : '') +
+        (d.sozlesmeBit ? '<dt>Sözleşme bitişi</dt><dd' + (sozKalan !== null && sozKalan <= 30 ? ' style="color:var(--bad)"' : '') + '>' + esc(tarihAdi(d.sozlesmeBit)) +
+          (sozKalan !== null && sozKalan >= 0 && sozKalan <= 60 ? ' (' + kalanGunMetni(sozKalan) + ')' : '') + '</dd>' : '') +
+        (d.kefilAd ? '<dt>Kefil</dt><dd>' + esc(d.kefilAd) + '</dd>' : '') +
+        (d.kefilTel ? kopyaSatiri('Kefil telefonu', d.kefilTel, true) : '') +
+        (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '');
+      if (!d.bos && (ekler || d.kiraciNot)) h += '<section class="card"><h2 class="card-title">Diğer bilgiler</h2><dl class="kv">' + ekler + '</dl>' + (d.kiraciNot ? '<p class="note">' + esc(d.kiraciNot) + '</p>' : '') + '</section>';
+      if (d.not) h += '<section class="card"><h2 class="card-title">Not</h2><p class="note">' + esc(d.not) + '</p></section>';
+      h += '<div class="actions">' +
         (!d.bos ? '<button type="button" class="btn ghost" data-act="kiraci-cikis" data-id="' + d.id + '">Kiracı çıktı</button>' : '') +
-        '<button type="button" class="btn ghost" data-act="toplu-ac" data-id="' + d.id + '">Geçmişi toplu gir</button>' +
-        '</div></section>' +
-        '<section class="card"><h2 class="card-title">Daire</h2><dl class="kv">' +
-        '<dt>Aylık kira</dt><dd>' + TL(d.kira) + '</dd>' +
-        '<dt>Ödeme günü</dt><dd>Ayın ' + (parseInt(d.odemeGunu, 10) || 1) + "'i</dd>" +
-        '<dt>Petek sayısı</dt><dd' + (d.petek ? '>' + d.petek : ' style="color:var(--muted)">Girilmemiş') + '</dd>' +
-        '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
-        (d.elkAbone ? kopyaSatiri('Elektrik abone no', d.elkAbone) : '<dt>Elektrik abone no</dt><dd style="color:var(--bad)">Girilmemiş</dd>') +
-        (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '') +
-        (d.suAbone ? kopyaSatiri('Su abone no', d.suAbone) : '<dt>Su abone no</dt><dd style="color:var(--muted)">Girilmemiş</dd>') +
-        '</dl>' + (d.not ? '<p class="note">' + esc(d.not) + '</p>' : '') + '</section>';
+        '<button type="button" class="btn ghost" data-act="toplu-ac" data-id="' + d.id + '">Geçmişi toplu gir</button></div>';
 
       var cur = buAy(), hucreler = '';
       for (var i = -10; i <= 1; i++) {
@@ -958,8 +1017,9 @@ function daireFormu(id, yeniKiraciMi) {
         alan('d-kiraci', 'Ad soyad', x.kiraci, ' autocomplete="off"') +
         '<div class="grid2">' + alan('d-tel', 'Telefon', x.telefon, ' type="tel"') + alan('d-tel2', 'Yakını / 2. telefon', x.telefon2, ' type="tel"') + '</div>' +
         alan('d-tc', 'TC kimlik no', x.tc, ' inputmode="numeric" maxlength="11"') +
-        '<div class="grid2">' + alan('d-bas', 'Giriş ayı (kira bu aydan itibaren)', yeniKiraci ? buAy() : (x.baslangic || ''), ' type="month"') +
+        '<div class="grid2">' + alan('d-bas', 'Giriş tarihi', yeniKiraci ? bugun() : (x.girisTarihi || (x.baslangic ? x.baslangic + '-01' : '')), ' type="date"') +
         alan('d-depozito', 'Depozito (₺)', x.depozito || '', ' inputmode="decimal" placeholder="Bilinmiyorsa boş bırakın"') + '</div>' +
+        '<label class="check"><input id="d-depal" type="checkbox"' + (x.depozitoAlindi || +x.depozito ? ' checked' : '') + '> Depozito alındı</label>' +
         '<div class="grid2">' + alan('d-sozbas', 'Sözleşme başlangıcı', x.sozlesmeBas, ' type="date"') + alan('d-sozbit', 'Sözleşme bitişi', x.sozlesmeBit, ' type="date"') + '</div>' +
         '<p class="note">Sözleşme bitişinden 30 gün ve 7 gün önce bildirim gelir.</p>' +
         '<div class="grid2">' + alan('d-kefil', 'Kefil adı', x.kefilAd) + alan('d-kefiltel', 'Kefil telefonu', x.kefilTel, ' type="tel"') + '</div>' +
@@ -970,6 +1030,8 @@ function daireFormu(id, yeniKiraciMi) {
         alan('d-gun', 'Kira ödeme günü', x.odemeGunu || 1, ' type="number" inputmode="numeric" min="1" max="31"') + '</div>' +
         '<div class="grid2">' + alan('d-kira', 'Aylık kira (₺)', x.kira || '', ' inputmode="decimal"') +
         alan('d-petek', 'Petek sayısı', x.petek || '', ' type="number" inputmode="numeric" min="0" max="50"') + '</div>' +
+        '<div class="grid2">' + alan('d-aidatyaz', 'Özel normal aidat (₺)', x.aidatYaz === undefined || x.aidatYaz === null ? '' : x.aidatYaz, ' inputmode="decimal" placeholder="Boşsa genel: ' + esc(DB.ayarlar.aidat.yaz) + '"') +
+        alan('d-aidatkis', 'Özel kış aidatı (₺)', x.aidatKis === undefined || x.aidatKis === null ? '' : x.aidatKis, ' inputmode="decimal" placeholder="Boşsa genel: ' + esc(DB.ayarlar.aidat.kis) + '"') + '</div>' +
         '<div class="grid2">' + alan('d-abone', 'Elektrik abone no (zorunlu)', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
         alan('d-su', 'Su abone no', x.suAbone, ' inputmode="numeric"') +
         '<div class="field"><label for="d-not">Daire notu</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
@@ -1007,18 +1069,20 @@ function daireKaydet(id) {
   var veri = {
     no: no, odemeGunu: Math.min(31, Math.max(1, parseInt($('#d-gun').value, 10) || 1)), kira: sayi($('#d-kira').value),
     elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), suAbone: $('#d-su').value.trim(), not: $('#d-not').value.trim(), bos: bos,
-    petek: parseInt($('#d-petek').value, 10) || 0
+    petek: parseInt($('#d-petek').value, 10) || 0,
+    aidatYaz: $('#d-aidatyaz').value.trim() === '' ? null : sayi($('#d-aidatyaz').value),
+    aidatKis: $('#d-aidatkis').value.trim() === '' ? null : sayi($('#d-aidatkis').value)
   };
   var kiraciVeri = {
     kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(), telefon2: $('#d-tel2').value.trim(), tc: tc,
-    baslangic: $('#d-bas').value || '', depozito: sayi($('#d-depozito').value), sozlesmeBas: sozBas, sozlesmeBit: sozBit,
+    girisTarihi: $('#d-bas').value || '', baslangic: ($('#d-bas').value || '').slice(0, 7), depozito: sayi($('#d-depozito').value), depozitoAlindi: $('#d-depal').checked || sayi($('#d-depozito').value) > 0, sozlesmeBas: sozBas, sozlesmeBit: sozBit,
     kefilAd: $('#d-kefil').value.trim(), kefilTel: $('#d-kefiltel').value.trim(), kiraciNot: $('#d-kiracinot').value.trim()
   };
   if (!bos) {
     var eski = (mevcut && mevcut.eskiKiracilar) || [];
     if (!kiraciVeri.baslangic && eski.length) kiraciVeri.baslangic = buAy();
     var sonCikis = eski.length ? eski[eski.length - 1].cikis : '';
-    if (sonCikis && kiraciVeri.baslangic && kiraciVeri.baslangic <= sonCikis) { toast('Giriş ayı, önceki kiracının çıkış ayından sonra olmalı'); return; }
+    if (sonCikis && kiraciVeri.baslangic && kiraciVeri.baslangic <= sonCikis) { toast('Giriş tarihi, önceki kiracının çıkış ayından sonra olmalı'); return; }
     Object.assign(veri, kiraciVeri);
   }
   if (mevcut) Object.assign(mevcut, veri);
@@ -1032,7 +1096,7 @@ function topluAylar(d, bas, bit) {
   if (!bas || !bit || bit < bas) return l;
   for (var ym = bas; ym <= bit && l.length < 240; ym = ayEkle(ym, 1)) {
     var k = kiraDurum(d, ym);
-    if (k.kalan > 0) l.push({ ym: ym, tutar: k.kalan, vade: k.vade });
+    if (k.kalan > 0) l.push({ ym: ym, tutar: k.kalan, vade: k.vade, kira: k.kira.kalan, aidat: k.aidat.kalan });
   }
   return l;
 }
@@ -1047,7 +1111,7 @@ function topluSayfasi(id) {
     ciz: function () {
       var son = DB.odemeler.filter(function (o) { return o.daireId === d.id && o.toplu; })
         .sort(function (a, b) { return a.kayit < b.kayit ? 1 : -1; })[0];
-      return '<section class="card"><p class="note">Seçtiğiniz aylar arasında kirası tam ödenmiş sayılacak aylar tek seferde kaydedilir. ' +
+      return '<section class="card"><p class="note">Seçtiğiniz aylar arasında kirası ve aidatı tam ödenmiş sayılacak aylar tek seferde kaydedilir. ' +
         'Zaten ödenmiş aylar atlanır, kısmi ödenmiş ayların kalanı tamamlanır. Eksik ödenen bir ay varsa sonra o aya dokunup düzeltebilirsiniz.</p></section>' +
         '<div class="form">' +
         '<div class="grid2"><div class="field"><label for="t-bas">İlk ay</label><input id="t-bas" type="month" value="' + esc(ilk) + '"></div>' +
@@ -1084,11 +1148,14 @@ function topluKaydet(id) {
   if (!l.length) { toast('Kaydedilecek ay yok'); return; }
   var tid = yeniId(), simdi = new Date().toISOString(), gun0 = bugun();
   l.forEach(function (x) {
-    DB.odemeler.push({ id: yeniId(), kayit: simdi, toplu: tid, daireId: d.id, tur: 'kira', donem: x.ym, tutar: x.tutar,
-      tarih: x.vade > gun0 ? gun0 : x.vade, sekil: S.topluSekil || 'Nakit', aciklama: '', not: 'Toplu giriş' });
+    [['kira', x.kira], ['aidat', x.aidat]].forEach(function (p) {
+      if (!(p[1] > 0)) return;
+      DB.odemeler.push({ id: yeniId(), kayit: simdi, toplu: tid, daireId: d.id, tur: p[0], donem: x.ym, tutar: p[1],
+        tarih: x.vade > gun0 ? gun0 : x.vade, sekil: S.topluSekil || 'Nakit', aciklama: '', not: 'Toplu giriş' });
+    });
   });
   kaydet(); sayfaKapat(); yenile();
-  toast(l.length + ' ayın kirası kaydedildi', function () {
+  toast(l.length + ' ayın kira ve aidatı kaydedildi', function () {
     DB.odemeler = DB.odemeler.filter(function (o) { return o.toplu !== tid; });
     kaydet(); yenile(); toast('Toplu giriş geri alındı');
   });
@@ -1117,8 +1184,8 @@ function kiraciCikisKaydet(id) {
     depozito: d.depozito || 0, sozlesmeBas: d.sozlesmeBas || '', sozlesmeBit: d.sozlesmeBit || '',
     kefilAd: d.kefilAd || '', kefilTel: d.kefilTel || '', not: d.kiraciNot || ''
   });
-  ['kiraci', 'telefon', 'telefon2', 'tc', 'baslangic', 'sozlesmeBas', 'sozlesmeBit', 'kefilAd', 'kefilTel', 'kiraciNot'].forEach(function (k) { d[k] = ''; });
-  d.depozito = 0; d.bos = true;
+  ['kiraci', 'telefon', 'telefon2', 'tc', 'baslangic', 'girisTarihi', 'sozlesmeBas', 'sozlesmeBit', 'kefilAd', 'kefilTel', 'kiraciNot'].forEach(function (k) { d[k] = ''; });
+  d.depozito = 0; d.depozitoAlindi = false; d.bos = true;
   kaydet(); sayfaKapat(); yenile(); toast('Kiracı çıkışı kaydedildi');
 }
 
@@ -1196,7 +1263,7 @@ function odemeFormu(on) {
     tutarElle: !!mevcut
   };
   var daireId = b.daireId || on.daireId || '';
-  var ay = (b.tur === 'kira' && b.donem) || on.ay || (daireId && daireBul(daireId) ? ilkOdenmemisAy(daireBul(daireId)) : buAy());
+  var ay = ((b.tur === 'kira' || b.tur === 'aidat') && b.donem) || on.ay || (daireId && daireBul(daireId) ? ilkOdenmemisAy(daireBul(daireId)) : buAy());
   var sezonSec = (b.tur === 'komur' && b.donem) || on.sezon || sezonu(bugun());
   sayfaAc({
     baslik: function () { return mevcut ? 'Ödemeyi düzenle' : 'Ödeme gir'; },
@@ -1210,13 +1277,13 @@ function odemeFormu(on) {
           return '<option value="' + d.id + '"' + (d.id === daireId ? ' selected' : '') + '>Daire ' + esc(d.no) + (d.kiraci ? ' · ' + esc(d.kiraci) : (d.bos ? ' · boş' : '')) + '</option>';
         }).join('') + '</select></div>' +
         '<div class="field"><span class="lbl">Ödeme türü</span><div class="seg" id="o-tur">' +
-        ['kira', 'komur', 'diger'].map(function (t) {
+        ['kira', 'aidat', 'komur', 'diger'].map(function (t) {
           return '<button type="button" data-act="o-tur" data-v="' + t + '" class="' + (FORM.tur === t ? 'on' : '') + '">' + TUR[t] + '</button>';
         }).join('') + '</div></div>' +
-        '<div class="field" id="f-ay"><label for="o-ay">Hangi ayın kirası?</label><input id="o-ay" type="month" value="' + esc(ay) + '"></div>' +
+        '<div class="field" id="f-ay"><label for="o-ay">Hangi ay?</label><input id="o-ay" type="month" value="' + esc(ay) + '"></div>' +
         '<div class="field" id="f-taksit"><label for="o-taksit">Hangi sezonun kömürü?</label><select id="o-taksit">' +
         sezonlar.map(function (z) { return '<option value="' + z + '"' + (z === sezonSec ? ' selected' : '') + '>' + z + '</option>'; }).join('') + '</select></div>' +
-        '<div class="field" id="f-aciklama"><label for="o-aciklama">Açıklama</label><input id="o-aciklama" value="' + esc(b.aciklama || '') + '" placeholder="Örn. aidat, tamir"></div>' +
+        '<div class="field" id="f-aciklama"><label for="o-aciklama">Açıklama</label><input id="o-aciklama" value="' + esc(b.aciklama || '') + '" placeholder="Örn. tamir, boya"></div>' +
         '<div class="grid2"><div class="field"><label for="o-tutar">Tutar (₺)</label><input id="o-tutar" inputmode="decimal" value="' + esc(b.tutar || '') + '"></div>' +
         '<div class="field"><label for="o-tarih">Ödeme tarihi</label><input id="o-tarih" type="date" value="' + esc(b.tarih || bugun()) + '"></div></div>' +
         '<p class="note" id="o-ipucu"></p>' +
@@ -1241,18 +1308,18 @@ function odemeFormu(on) {
   });
 }
 function formAlanlari() {
-  $('#f-ay').hidden = FORM.tur !== 'kira';
+  $('#f-ay').hidden = FORM.tur !== 'kira' && FORM.tur !== 'aidat';
   $('#f-taksit').hidden = FORM.tur !== 'komur';
   $('#f-aciklama').hidden = FORM.tur !== 'diger';
 }
 function tutarOner() {
   var d = daireBul($('#o-daire').value), ipucu = $('#o-ipucu'), kalan = null, metin = '';
-  if (d && FORM.tur === 'kira') {
+  if (d && (FORM.tur === 'kira' || FORM.tur === 'aidat')) {
     var ym = $('#o-ay').value;
     if (ym) {
-      var k = kiraDurum(d, ym);
+      var k = FORM.tur === 'aidat' ? aidatDurum(d, ym) : kiraTekDurum(d, ym);
       if (k.kod === 'yok') metin = 'Bu daire o ay boş görünüyor.';
-      else if (k.beklenen) { kalan = k.kalan; metin = ayAdi(ym) + ': ' + TL(k.odenen) + ' ödendi, ' + TL(k.kalan) + ' kaldı.'; }
+      else if (k.beklenen) { kalan = k.kalan; metin = ayAdi(ym) + ' ' + (FORM.tur === 'aidat' ? 'aidatı' : 'kirası') + ': ' + TL(k.beklenen) + ', ' + TL(k.odenen) + ' ödendi, ' + TL(k.kalan) + ' kaldı.'; }
     }
   } else if (d && FORM.tur === 'komur') {
     var sel = $('#o-taksit'), kz = sel ? komurSezonBul(sel.value) : null, kk = komurDurum(d, kz);
@@ -1268,7 +1335,7 @@ function odemeKaydet() {
   if (!did) { toast('Daire seçin'); return; }
   if (!(tutar > 0)) { toast('Tutar girin'); return; }
   if (!tarih) { toast('Ödeme tarihini girin'); return; }
-  if (FORM.tur === 'kira') { donem = $('#o-ay').value; if (!donem) { toast('Hangi ayın kirası olduğunu seçin'); return; } }
+  if (FORM.tur === 'kira' || FORM.tur === 'aidat') { donem = $('#o-ay').value; if (!donem) { toast('Hangi ay olduğunu seçin'); return; } }
   if (FORM.tur === 'komur') {
     var sel = $('#o-taksit'); donem = sel ? sel.value : '';
     if (!donem) { toast('Sezonu seçin'); return; }
@@ -1314,7 +1381,7 @@ function csvAktar() {
   var satirlar = [['Ödeme tarihi', 'Daire', 'Kiracı', 'Tür', 'Dönem', 'Tutar', 'Ödeme şekli', 'Not']];
   DB.odemeler.slice().sort(function (a, b) { return a.tarih < b.tarih ? -1 : 1; }).forEach(function (o) {
     var d = daireBul(o.daireId), donem = '';
-    if (o.tur === 'kira') donem = o.donem ? ayAdi(o.donem) : '';
+    if (o.tur === 'kira' || o.tur === 'aidat') donem = o.donem ? ayAdi(o.donem) : '';
     else if (o.tur === 'komur') donem = (o.donem || '') + ' kömür';
     else donem = o.aciklama || '';
     satirlar.push([o.tarih, d ? d.no : '', d ? d.kiraci : '', TUR[o.tur], donem, String(o.tutar).replace('.', ','), o.sekil || '', o.not || '']);
@@ -1385,12 +1452,14 @@ var EYLEM = {
   'hizli-odendi': function (el) {
     var d = daireBul(el.dataset.id), ym = S.ay, k = kiraDurum(d, ym);
     if (!(k.kalan > 0)) return;
-    var oid = yeniId();
-    DB.odemeler.push({ id: oid, kayit: new Date().toISOString(), daireId: d.id, tur: 'kira', donem: ym, tutar: k.kalan,
-      tarih: bugun(), sekil: 'Nakit', aciklama: '', not: '' });
+    var tid = yeniId(), simdi = new Date().toISOString();
+    [['kira', k.kira.kalan], ['aidat', k.aidat.kalan]].forEach(function (p) {
+      if (p[1] > 0) DB.odemeler.push({ id: yeniId(), kayit: simdi, hizli: tid, daireId: d.id, tur: p[0], donem: ym, tutar: p[1],
+        tarih: bugun(), sekil: 'Nakit', aciklama: '', not: '' });
+    });
     kaydet(); ciz();
-    toast('Daire ' + d.no + ' · ' + ayAdi(ym) + ' kirası ödendi (' + TL(k.kalan) + ')', function () {
-      DB.odemeler = DB.odemeler.filter(function (o) { return o.id !== oid; });
+    toast('Daire ' + d.no + ' · ' + ayAdi(ym) + ' ödendi (' + dokum(k) + ')', function () {
+      DB.odemeler = DB.odemeler.filter(function (o) { return o.hizli !== tid; });
       kaydet(); yenile(); toast('Geri alındı');
     });
   },
@@ -1461,6 +1530,10 @@ var EYLEM = {
   'yedek-al': yedekAl,
   'yedek-yukle': function () { if (BR && BR.importData) BR.importData(); else toast('Yedek yükleme sadece telefonda çalışır'); },
   'csv': csvAktar,
+  'aidat-kaydet': function () {
+    DB.ayarlar.aidat = { yaz: sayi($('#ad-yaz').value), kis: sayi($('#ad-kis').value), kisBas: +$('#ad-bas').value, kisBit: +$('#ad-bit').value };
+    kaydet(); ciz(); toast('Aidat kaydedildi');
+  },
   'oto-klasor': function () { if (BR && BR.chooseBackupFolder) BR.chooseBackupFolder(); else toast('Sadece telefonda çalışır'); },
   'oto-simdi': function () { if (BR && BR.backupNow) { BR.backupNow(); toast('Yedekleniyor…'); } },
   'guncelleme-kontrol': function () { guncellemeKontrol(true); },
