@@ -925,7 +925,7 @@ function satirSar(d, satirHtml) {
 /* Değeri gösteren satır: yanında kopyala düğmesi, değere basılı tutunca da kopyalar; telefonsa arama düğmesi de */
 function kopyaSatiri(ad, deger, telefon) {
   return '<dt>' + esc(ad) + '</dt><dd class="kopya-dd"><span class="kopya" data-kopya="' + esc(deger) + '" data-ad="' + esc(ad) + '">' + esc(deger) + '</span>' +
-    '<button type="button" class="kopya-btn" data-act="kopyala" data-v="' + esc(deger) + '" data-ad="' + esc(ad) + '" aria-label="' + esc(ad) + ' kopyala">' + KOPYA_IKON + '</button>' + (telefon ? araDugmesi(deger, ad) : '') + '</dd>';
+    (telefon ? araDugmesi(deger, ad) : '<button type="button" class="kopya-btn" data-act="kopyala" data-v="' + esc(deger) + '" data-ad="' + esc(ad) + '" aria-label="' + esc(ad) + ' kopyala">' + KOPYA_IKON + '</button>') + '</dd>';
 }
 var KOPYA_IKON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>';
 
@@ -1042,14 +1042,14 @@ function daireSayfasi(id) {
         (d.elkAbone ? kopyaSatiri('Elektrik abone', d.elkAbone) : '<dt>Elektrik abone</dt>' + bos()) +
         (d.suAbone ? kopyaSatiri('Su abone', d.suAbone) : '<dt>Su abone</dt>' + bos()) +
         '<dt>Petek sayısı</dt>' + (d.petek ? '<dd>' + d.petek + '</dd>' : bos()) +
-        '<dt>Kömür' + (kSz ? ' ' + esc(kSz.sezon) : '') + '</dt>' + (kDu ? '<dd>' + TL(kDu.odenen) + ' / ' + TL(kDu.beklenen) + (kDu.kalan > 0 ? ' · <span style="color:var(--bad)">' + TL(kDu.kalan) + ' kaldı</span>' : ' ✓') + '</dd>' : bos(d.bos ? '–' : 'Yazılmamış')) +
+        '<dt>Kömür' + (kSz ? ' ' + esc(kSz.sezon) : '') + '</dt>' + (kDu ? '<dd>' + TL(kDu.beklenen) + '<br><small class="muted">Ödenen: ' + TL(kDu.odenen) + '</small>' +
+          (kDu.kalan > 0 ? '<br><small style="color:var(--bad)">Kalan: ' + TL(kDu.kalan) + '</small>' : ' <small style="color:var(--ok)">✓</small>') + '</dd>' : bos(d.bos ? '–' : 'Yazılmamış')) +
         (function () {
-          /* Toplam borç = gecikmiş kira/aidat + kalan kömür + alınmamış depozito */
-          var kom = kDu ? kDu.kalan : 0, dep = depozitoDurumu(d) === 'alinmadi' ? (+d.depozito || +d.kira || 0) : 0;
-          var top = borcTop + kom + dep, parca = [];
+          /* Toplam borç = gecikmiş kira/aidat + kalan kömür (depozito borç sayılmaz) */
+          var kom = kDu ? kDu.kalan : 0;
+          var top = borcTop + kom, parca = [];
           if (borcTop) parca.push('Kira/aidat ' + TL(borcTop));
           if (kom) parca.push('Kömür ' + TL(kom));
-          if (dep) parca.push('Depozito ' + TL(dep));
           return '<dt>Toplam borç</dt><dd style="color:' + (top ? 'var(--bad)' : 'var(--ok)') + '">' + (top ? TL(top) : 'Yok') +
             (parca.length > 1 || (parca.length === 1 && !borcTop) ? '<br><small class="muted">' + parca.join(' · ') + '</small>' : '') + '</dd>';
         })() +
