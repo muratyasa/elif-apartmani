@@ -575,17 +575,21 @@ function vOzet() {
   return h;
 }
 
+function kalemSatiri(ad, x) {
+  if (x.kod === 'tanimsiz') return '<span class="kalem"><span class="k-ad">' + ad + '</span><span class="k-tutar muted">—</span>' + chip('tanimsiz') + '</span>';
+  if (x.beklenen <= 0 && x.odenen <= 0) return '<span class="kalem"><span class="k-ad">' + ad + '</span><span class="k-tutar muted">—</span><span class="k-not">Kiraya dahil</span></span>';
+  return '<span class="kalem"><span class="k-ad">' + ad + '</span><span class="k-tutar' + (x.kod === 'gecikti' ? ' bad' : '') + '">' + TL(x.kalan > 0 ? x.kalan : x.beklenen) + '</span>' + chip(x.kod) + '</span>';
+}
 function daireSatiri(d, ay) {
-  var k = kiraDurum(d, ay), durum;
-  if (k.kod === 'yok') durum = '<span class="muted">' + (d.ortak ? 'Kiraya verilmiyor' : 'Kiracı yok') + '</span>';
-  else if (k.kod === 'tanimsiz') durum = chip('tanimsiz');
-  else durum = chip(k.kod) + ' <span class="amt' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan > 0 ? k.kalan : k.beklenen) + '</span>';
+  var k = kiraDurum(d, ay), alt;
+  if (k.kod === 'yok') alt = '<span class="row-sub">' + (d.ortak ? 'Kiraya verilmiyor' : 'Kiracı yok') + '</span>';
+  else alt = '<span class="kalemler">' + kalemSatiri('Kira', k.kira) + kalemSatiri('Aidat', k.aidat) + '</span>';
   var hizli = (k.kod === 'bekliyor' || k.kod === 'gecikti' || k.kod === 'kismi') && k.kalan > 0
     ? '<button type="button" class="paid-btn" data-act="hizli-odendi" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' ' + esc(ayAdi(ay)) + ' kirası ödendi">✓</button>' : '';
-  return satirSar(d, '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '">' +
+  return '<div class="row-wrap"><button type="button" class="row daire-row" data-act="daire-ac" data-id="' + d.id + '">' +
     '<span class="no">' + esc(d.no) + '</span>' +
-    '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
-    '<span class="row-sub row-status">' + durum + (d.petek ? ' <span class="info-chip">' + d.petek + ' petek</span>' : '') + '</span></span></button>' + hizli);
+    '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' + alt + '</span>' +
+    '<span class="petek-sut">' + (d.petek ? '<b>' + d.petek + '</b><small>petek</small>' : '') + '</span></button>' + (hizli || '<span class="paid-yer"></span>') + '</div>';
 }
 function daireFiltreli() {
   var ay = S.ay, q = S.arama.trim().toLocaleLowerCase('tr');
@@ -965,8 +969,7 @@ function araDugmesi(tel, ad) {
 }
 /* Listede satır + yanında telefon düğmesi */
 function satirSar(d, satirHtml) {
-  var wa = d && !d.bos && d.telefon && kiraBorclari(d).length && typeof waDugmesi === 'function' ? waDugmesi(d) : '';
-  return '<div class="row-wrap">' + satirHtml + wa + (d && !d.bos && d.telefon ? araDugmesi(d.telefon, d.kiraci) : '') + '</div>';
+  return '<div class="row-wrap">' + satirHtml + '</div>';
 }
 /* Değeri gösteren satır: yanında kopyala düğmesi, değere basılı tutunca da kopyalar; telefonsa arama düğmesi de */
 function kopyaSatiri(ad, deger, telefon) {
