@@ -24,7 +24,9 @@ jobs:
           gradle-version: '8.7'
 
       - name: Ekran sürümünü yaz
-        run: echo "{\"surum\": ${{ github.run_number }}, \"native\": $(cat native_api.txt)}" > app/src/main/assets/web.json
+        run: |
+          printf '{"surum": %s, "native": %s}\n' "${{ github.run_number }}" "$(cat native_api.txt)" > app/src/main/assets/web.json
+          cat app/src/main/assets/web.json
 
       - name: APK derle
         run: gradle assembleRelease --no-daemon --stacktrace

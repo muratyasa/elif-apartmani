@@ -847,11 +847,19 @@ function vAyarlar() {
     '<p class="note">Telefon kaybolursa diye: telefonun <b>Ayarlar → Google → Yedekleme</b> bölümünde yedekleme açıksa uygulamanın kayıtları Google hesabına da yedeklenir.</p>' +
     '</section>';
 
-  h += '<section class="card"><h2 class="card-title">Elle yedek</h2>' +
-    '<p class="note">İstediğiniz an bir yedek dosyası oluşturup Google Drive\'a veya başka bir yere kaydedebilirsiniz.</p>' +
-    (DB.sonYedek ? '<p class="note">Son elle yedek: ' + esc(tarihAdi(DB.sonYedek)) + '</p>' : '') +
-    '<div class="actions"><button type="button" class="btn ghost" data-act="yedek-al">Yedek al</button>' +
-    '<button type="button" class="btn ghost" data-act="yedek-yukle">Yedekten yükle</button></div>' +
+  h += '<section class="card"><h2 class="card-title">Google Drive yedeği</h2>' +
+    '<p class="note">Telefon kaybolsa bile kayıtlar kaybolmasın diye haftada bir Drive\'a yedek alın.</p>' +
+    (DB.sonYedek ? '<p class="note">Son yedek: ' + esc(tarihAdi(DB.sonYedek)) + '</p>' : '<p class="note warn">Henüz Drive\'a yedek alınmadı.</p>') +
+    '<button type="button" class="btn block" data-act="drive-yedekle">Google Drive\'a yedekle</button>' +
+    '<button type="button" class="btn ghost block" data-act="drive-yukle">Google Drive\'dan geri yükle</button>' +
+    '<details class="note"><summary>Nasıl?</summary>' +
+    '<p><b>Yedeklerken:</b> açılan menüden <b>Drive</b>’ı (Drive’a kaydet) seçin, klasörü seçip <b>Kaydet</b>’e basın.</p>' +
+    '<p><b>Geri yüklerken:</b> açılan dosya ekranında sol üstteki <b>☰</b> menüden <b>Drive</b>’ı seçin, en yeni “elif-apartmani-yedek” dosyasına dokunun.</p></details>' +
+    '</section>';
+
+  h += '<section class="card"><h2 class="card-title">Diğer</h2>' +
+    '<div class="actions"><button type="button" class="btn ghost" data-act="yedek-al">Dosya olarak kaydet</button>' +
+    '<button type="button" class="btn ghost" data-act="yedek-yukle">Dosyadan yükle</button></div>' +
     '<button type="button" class="btn ghost block" data-act="metin-ac">Metinden yükle (kopyala-yapıştır)</button>' +
     '<button type="button" class="btn ghost block" data-act="csv">Excel için ödemeleri dışa aktar</button></section>';
 
@@ -1534,6 +1542,7 @@ function metinSayfasi() {
     }
   });
 }
+W.onShareStarted = function () { DB.sonYedek = bugun(); kaydet(); if (S.tab === 'ayarlar' && !YIGIN.length) ciz(); };
 W.onImport = function (text) {
   var o;
   try { o = JSON.parse(String(text || '').trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '')); } catch (e) { o = null; }
@@ -1709,6 +1718,15 @@ var EYLEM = {
   'yedek-al': yedekAl,
   'metin-ac': function () { metinSayfasi(); },
   'metin-yukle': function () { var t = $('#m-metin').value; if (!t.trim()) { toast('Önce metni yapıştırın'); return; } W.onImport(t); },
+  'drive-yedekle': function () {
+    if (!(BR && BR.shareFile)) { yedekAl(); return; }
+    BR.shareFile(JSON.stringify(DB), 'elif-apartmani-yedek-' + bugun() + '.json', 'application/json');
+  },
+  'drive-yukle': function () {
+    if (!(BR && BR.importData)) { toast('Sadece telefonda çalışır'); return; }
+    toast('Sol üstteki ☰ menüden Drive’ı seçin');
+    BR.importData();
+  },
   'yedek-yukle': function () { if (BR && BR.importData) BR.importData(); else toast('Yedek yükleme sadece telefonda çalışır'); },
   'csv': csvAktar,
   'artis-ac': function (el) { artisSayfasi(el.dataset.id); },

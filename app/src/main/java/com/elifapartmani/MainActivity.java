@@ -236,6 +236,30 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void shareFile(String content, String fileName, String mime) {
+            runOnUiThread(() -> {
+                try {
+                    java.io.File dir = new java.io.File(getCacheDir(), "paylas");
+                    dir.mkdirs();
+                    java.io.File[] eski = dir.listFiles();
+                    if (eski != null) for (java.io.File f : eski) f.delete();
+                    try (OutputStream os = new java.io.FileOutputStream(new java.io.File(dir, fileName))) {
+                        os.write(content.getBytes(StandardCharsets.UTF_8));
+                    }
+                    Intent i = new Intent(Intent.ACTION_SEND);
+                    i.setType(mime);
+                    i.putExtra(Intent.EXTRA_STREAM, PaylasProvider.uriFor(fileName));
+                    i.putExtra(Intent.EXTRA_SUBJECT, fileName);
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(i, "Yedeği gönder / kaydet"));
+                    callJs("window.onShareStarted && window.onShareStarted()");
+                } catch (Exception e) {
+                    callJs("window.onExportDone && window.onExportDone(false)");
+                }
+            });
+        }
+
+        @JavascriptInterface
         public int nativeApi() {
             return BuildConfig.NATIVE_API;
         }
