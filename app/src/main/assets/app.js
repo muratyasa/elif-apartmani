@@ -46,6 +46,12 @@ function normalize(o) {
       x.girisTarihi = '2023-07-15'; x.baslangic = '2023-07'; x.takipBas = '2026-07';
     }
   });
+  /* Düzeltme (24.10.2026): Daire 30 ve 32'nin Ekim 2026 kira artışı yapıldı */
+  (d.daireler || []).forEach(function (x) {
+    if ((x.no === '30' || x.no === '32') && x.girisTarihi === '2025-10-15' && !(x.kiraArtislari || []).length) {
+      x.kiraArtislari = [{ ay: '2026-10', eski: +x.kira || 0, yeni: +x.kira || 0, not: 'Ekim 2026 artışı yapıldı' }];
+    }
+  });
   /* Düzeltme: 9.834 ₺ petek başına fiyattı; ton fiyatı 16.390 ₺, petek başına 600 kg (tutarlar değişmez) */
   d.komur.forEach(function (z) {
     if (+z.tonFiyati === 9834 && !z.petekKg) {
