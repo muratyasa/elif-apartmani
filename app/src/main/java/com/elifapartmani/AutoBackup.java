@@ -76,6 +76,19 @@ final class AutoBackup {
     static synchronized void run(Context c, boolean force) {
         String data = Storage.read(c, "data.json");
         if (data.isEmpty()) return;
+        // Giriş bilgileri ve eşitleme izleri ("_" ile başlayan alanlar) yedeğe konmaz
+        try {
+            JSONObject o = new JSONObject(data);
+            java.util.List<String> sil = new java.util.ArrayList<>();
+            java.util.Iterator<String> it = o.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                if (k.startsWith("_")) sil.add(k);
+            }
+            for (String k : sil) o.remove(k);
+            data = o.toString();
+        } catch (Exception ignored) {
+        }
         String bugun = Reminders.today();
 
         // 1) Uygulamanın kendi klasörüne günlük kopya

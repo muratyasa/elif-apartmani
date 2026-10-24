@@ -66,13 +66,23 @@ function normalize(o) {
   IDX = null;
   return d;
 }
-function kaydet() {
+function kaydetYerel() {
   IDX = null;
   var s = JSON.stringify(DB);
   try {
     if (BR) BR.save(s); else localStorage.setItem('elif-db', s);
   } catch (e) { toast('Kaydedilemedi'); }
+}
+function kaydet() {
+  kaydetYerel();
   hatirlatmalariGonder();
+  if (typeof gonderZamanla === 'function') gonderZamanla();
+}
+/* Yedek dosyasına giriş bilgileri ve eşitleme izleri konmaz */
+function temizVeri() {
+  var o = {};
+  Object.keys(DB).forEach(function (k) { if (k.charAt(0) !== '_') o[k] = DB[k]; });
+  return o;
 }
 function yeniId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -767,7 +777,7 @@ function odemeSatiri(o, daireGoster) {
   return '<button type="button" class="row" data-act="odeme-duzenle" data-id="' + o.id + '">' +
     (daireGoster ? '<span class="no">' + esc(d ? d.no : '?') + '</span>' : '') +
     '<span class="row-main"><span class="row-title">' + esc(baslik) + '</span>' +
-    '<span class="row-sub">' + esc(alt) + (o.not ? ' · ' + esc(o.not) : '') + '</span></span>' +
+    '<span class="row-sub">' + esc(alt) + (o.not ? ' · ' + esc(o.not) : '') + (o.kim && typeof kisaKim === 'function' ? ' · ' + esc(kisaKim(o.kim)) : '') + '</span></span>' +
     '<span class="row-end"><span class="amt">' + TL(o.tutar) + '</span></span></button>';
 }
 function vGecmis() {
@@ -804,7 +814,21 @@ function vGecmis() {
 function vAyarlar() {
   var A = DB.ayarlar, izin = BR && BR.notificationsAllowed ? BR.notificationsAllowed() : true;
   var secenek = [[0, 'Ödeme günü'], [1, '1 gün önce'], [3, '3 gün önce'], [7, '7 gün önce'], [15, '15 gün önce']];
-  var h = '<section class="card"><h2 class="card-title">Bildirimler</h2>';
+  var h = '';
+  if (BR && BR.http) {
+    var ot = DB._oturum;
+    h += '<section class="card"><h2 class="card-title">Ortak kullanım</h2>' + (ot
+      ? '<p class="note">Giriş yapan: <b>' + esc(ot.email) + '</b>. Bu telefondaki kayıtlar diğer telefonlarla eşitleniyor.</p>' +
+        '<p class="note" id="senk-durum">' + senkDurumHtml() + '</p>' +
+        '<div class="actions"><button type="button" class="btn ghost" data-act="senk-simdi">Şimdi eşitle</button>' +
+        '<button type="button" class="btn ghost" data-act="senk-cikis">Çıkış yap</button></div>'
+      : '<p class="note">Babanız, kardeşiniz ve siz aynı kayıtları görün: kendi e-postanızla giriş yapın.</p>' +
+        '<div class="form"><div class="field"><label for="g-email">E-posta</label><input id="g-email" type="email" autocomplete="email" inputmode="email"></div>' +
+        '<div class="field"><label for="g-sifre">Şifre</label><input id="g-sifre" type="password" autocomplete="current-password"></div>' +
+        '<button type="button" class="btn block" data-act="senk-giris">Giriş yap</button>' +
+        '<button type="button" class="link" data-act="senk-unuttum">Şifremi unuttum</button></div>') + '</section>';
+  }
+  h += '<section class="card"><h2 class="card-title">Bildirimler</h2>';
   if (!izin) {
     h += '<p class="note warn">Bildirim izni kapalı, hatırlatmalar gelmez.</p>' +
       '<button type="button" class="btn block" data-act="bildirim-izin">Bildirimlere izin ver</button>';
@@ -1496,7 +1520,7 @@ function dosyaKaydet(icerik, ad, tur) {
 }
 function yedekAl() {
   S.bekleyenYedek = true;
-  dosyaKaydet(JSON.stringify(DB, null, 1), 'elif-apartmani-yedek-' + bugun() + '.json', 'application/json');
+  dosyaKaydet(JSON.stringify(temizVeri(), null, 1), 'elif-apartmani-yedek-' + bugun() + '.json', 'application/json');
 }
 W.onExportDone = function (ok) {
   if (ok && S.bekleyenYedek) { DB.sonYedek = bugun(); kaydet(); }
@@ -1562,7 +1586,15 @@ W.onImport = function (text) {
   if (o && o.kurulum) { try { o = kurulumAc(o); } catch (e) { o = null; } }
   if (!o || !Array.isArray(o.daireler)) { toast('Bu dosya bir Elif Apartmanı yedeği değil'); return; }
   onayla('Şu anki kayıtların yerine bu yedek yüklenecek: ' + o.daireler.length + ' daire, ' + (o.odemeler || []).length + ' ödeme. Şu anki kayıtlar silinir.',
-    'Yedeği yükle', function () { DB = normalize(o); kaydet(); YIGIN = []; sayfaCiz(); ciz(); toast('Yedek yüklendi'); });
+    'Yedeği yükle', function () {
+      var ot = DB._oturum;
+      DB = normalize(o); DB._oturum = ot || null; DB._yansi = null; DB._son = null;
+      kaydetYerel(); hatirlatmalariGonder(); YIGIN = []; sayfaCiz(); ciz();
+      if (ot && typeof tamGonder === 'function') {
+        toast('Yedek yüklendi, ortak kayıtlara gönderiliyor…');
+        tamGonder().then(function () { return cek(); }).then(function () { toast('Ortak kayıtlar güncellendi'); }, function (e) { toast(e.message); });
+      } else toast('Yedek yüklendi');
+    });
 };
 function csvAktar() {
   function hucre(v) { var s = String(v == null ? '' : v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
@@ -1733,7 +1765,7 @@ var EYLEM = {
   'metin-yukle': function () { var t = $('#m-metin').value; if (!t.trim()) { toast('Önce metni yapıştırın'); return; } W.onImport(t); },
   'drive-yedekle': function () {
     if (!(BR && BR.shareFile)) { yedekAl(); return; }
-    BR.shareFile(JSON.stringify(DB), 'elif-apartmani-yedek-' + bugun() + '.json', 'application/json');
+    BR.shareFile(JSON.stringify(temizVeri()), 'elif-apartmani-yedek-' + bugun() + '.json', 'application/json');
   },
   'drive-yukle': function () {
     if (!(BR && BR.importData)) { toast('Sadece telefonda çalışır'); return; }
@@ -1742,6 +1774,30 @@ var EYLEM = {
   },
   'yedek-yukle': function () { if (BR && BR.importData) BR.importData(); else toast('Yedek yükleme sadece telefonda çalışır'); },
   'csv': csvAktar,
+  'senk-giris': function (el) {
+    var e = $('#g-email').value.trim(), p = $('#g-sifre').value;
+    if (!e || !p) { toast('E-posta ve şifreyi girin'); return; }
+    el.disabled = true; el.textContent = 'Giriş yapılıyor…';
+    girisYap(e, p).then(function (sonuc) {
+      SENK.zaman = new Date(); SENK.hata = '';
+      toast(sonuc === 'cekildi' ? 'Giriş yapıldı, ortak kayıtlar yüklendi' : 'Giriş yapıldı, bu telefondaki kayıtlar ortak alana gönderildi');
+      YIGIN = []; sayfaCiz(); ciz();
+    }, function (err) {
+      if (DB._oturum && /izin/.test(err.message)) { DB._oturum = null; kaydetYerel(); }
+      toast(err.message); ciz();
+    });
+  },
+  'senk-unuttum': function () {
+    var e = $('#g-email').value.trim();
+    if (!e) { toast('Önce e-posta adresinizi yazın'); return; }
+    sifreSifirla(e).then(function () { toast('Şifre yenileme e-postası gönderildi'); }, function (err) { toast(err.message); });
+  },
+  'senk-simdi': function () { toast('Eşitleniyor…'); esitle('elle').then(function () { toast(SENK.hata ? SENK.hata : 'Eşitlendi'); ciz(); }); },
+  'senk-cikis': function () {
+    onayla('Bu telefonda ortak kullanımdan çıkış yapılacak. Kayıtlar telefonda kalır ama artık eşitlenmez.', 'Çıkış yap', function () {
+      cikisYap(); YIGIN = []; sayfaCiz(); ciz(); toast('Çıkış yapıldı');
+    });
+  },
   'artis-ac': function (el) { artisSayfasi(el.dataset.id); },
   'artis-kaydet': function (el) { artisKaydet(el.dataset.id); },
   'aidat-kaydet': function () {
@@ -1787,6 +1843,7 @@ W.onAppResume = function () {
   if (!S.sonKontrol || simdi - S.sonKontrol > 3 * 3600 * 1000) { S.sonKontrol = simdi; if (!S.guncelleme) guncellemeKontrol(false); }
   if (!YIGIN.length) ciz();
   hatirlatmalariGonder();
+  if (typeof esitle === 'function') esitle('devam');
 };
 
 function baslat() {
@@ -1817,9 +1874,10 @@ function baslat() {
   ciz();
   hatirlatmalariGonder();
   setTimeout(function () { guncellemeKontrol(false); }, 1500);
+  if (typeof esitle === 'function') esitle('acilis');
 }
 
-if (typeof document !== 'undefined' && document.getElementById('main')) baslat();
+if (typeof document !== 'undefined' && document.getElementById('main')) document.addEventListener('DOMContentLoaded', baslat);
 if (typeof module !== 'undefined') {
   module.exports = { kurulumAc: kurulumAc, setDB: function (d) { DB = normalize(d); }, kiraDurum: kiraDurum, kiraBorclari: kiraBorclari, hatirlatmaListesi: hatirlatmaListesi, komurDurum: komurDurum, ayEkle: ayEkle, sezonu: sezonu, sayi: sayi, vadeGunu: vadeGunu };
 }

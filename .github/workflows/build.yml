@@ -46,4 +46,5 @@ jobs:
             app/src/main/assets/index.html
             app/src/main/assets/app.js
             app/src/main/assets/app.css
+            app/src/main/assets/senk.js
           make_latest: true

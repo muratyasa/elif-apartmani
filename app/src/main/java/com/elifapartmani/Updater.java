@@ -30,7 +30,7 @@ final class Updater {
     private Updater() {}
 
     static final String RELEASE_API = "https://api.github.com/repos/muratyasa/elif-apartmani/releases/latest";
-    private static final String[] WEB_FILES = {"index.html", "app.js", "app.css"};
+    private static final String[] WEB_FILES = {"index.html", "app.js", "app.css", "senk.js"};
 
     private static SharedPreferences sp(Context c) {
         return c.getSharedPreferences("guncelleme", Context.MODE_PRIVATE);

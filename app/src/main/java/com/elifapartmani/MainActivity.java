@@ -259,6 +259,45 @@ public class MainActivity extends Activity {
             });
         }
 
+        /** Eşitleme için genel HTTP isteği (sayfa yerine telefon yapar, CORS sorunu olmaz). */
+        @JavascriptInterface
+        public void http(String id, String method, String url, String body, String headersJson) {
+            new Thread(() -> {
+                int code = 0;
+                String resp = "";
+                HttpURLConnection c = null;
+                try {
+                    c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    c.setRequestMethod(method);
+                    JSONObject h = new JSONObject(headersJson == null || headersJson.isEmpty() ? "{}" : headersJson);
+                    java.util.Iterator<String> it = h.keys();
+                    while (it.hasNext()) {
+                        String k = it.next();
+                        c.setRequestProperty(k, h.getString(k));
+                    }
+                    if (body != null && !body.isEmpty()) {
+                        c.setDoOutput(true);
+                        try (OutputStream os = c.getOutputStream()) {
+                            os.write(body.getBytes(StandardCharsets.UTF_8));
+                        }
+                    }
+                    code = c.getResponseCode();
+                    InputStream is = code >= 400 ? c.getErrorStream() : c.getInputStream();
+                    if (is != null) try (InputStream in = is) {
+                        resp = readAll(in);
+                    }
+                } catch (Exception e) {
+                    code = 0;
+                    resp = String.valueOf(e.getMessage());
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+                callJs("window.onHttp && window.onHttp(" + JSONObject.quote(id) + "," + code + "," + JSONObject.quote(resp) + ")");
+            }).start();
+        }
+
         @JavascriptInterface
         public int nativeApi() {
             return BuildConfig.NATIVE_API;
