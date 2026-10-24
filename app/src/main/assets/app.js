@@ -300,7 +300,7 @@ function hatirlatmaListesi() {
       if (A.gecikme) gecikmeGunleri(k.vade).forEach(function (t) { ekle(t, 'kira-gec', 0, d, ayAdi(ym) + ', ' + dokum(k)); });
     }
     DB.komur.forEach(function (sez) {
-      if (!sez.sonOdeme) return;
+      if (!sez.sonOdeme || d.bos) return;
       var k = komurDurum(d, sez);
       if (!k || k.kalan <= 0) return;
       gunler.forEach(function (g) { ekle(gunEkle(sez.sonOdeme, -g), 'komur', g, d, TL(k.kalan)); });
@@ -592,12 +592,11 @@ function vKomur() {
   h += '<section class="card"><div class="card-head"><h2 class="card-title">Daireler</h2></div>' +
     '<p class="note">Daireye dokunarak kilo girin veya değiştirin. Ödeme almak için yanındaki yeşil düğmeye basın.</p><div class="list">';
   daireler().forEach(function (d) {
-    if (d.ortak) return;
     var k = komurDurum(d, sez);
     var alt, durum;
-    if (!k) { alt = 'Kömür yazılmamış'; durum = '<span class="row-sub">–</span>'; }
+    if (!k) { alt = d.petek ? 'Kömür yazılmamış' : 'Petek sayısı girilmemiş'; durum = '<span class="row-sub">–</span>'; }
     else {
-      alt = (d.petek ? d.petek + ' petek · ' : '') + (k.kg ? kgMetni(k.kg) + (k.otomatik ? ' (petekten)' : '') + ' · ' : '') + TL(k.odenen) + ' / ' + TL(k.beklenen);
+      alt = (d.bos ? 'Ev sahibi payı · ' : '') + (d.petek ? d.petek + ' petek · ' : '') + (k.kg ? kgMetni(k.kg) + (k.otomatik ? ' (petekten)' : '') + ' · ' : '') + TL(k.odenen) + ' / ' + TL(k.beklenen);
       durum = chip(k.kod) + (k.kalan > 0 ? ' <span class="amt' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan) + '</span>' : '');
     }
     var ode = k && k.kalan > 0 ? '<button type="button" class="paid-btn" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kömür ödemesi gir">₺</button>' : '';
