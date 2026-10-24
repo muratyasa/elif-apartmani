@@ -272,9 +272,17 @@ function senkDurumHtml() {
   if (SENK.zaman) return 'Son eşitleme: ' + pad(SENK.zaman.getHours()) + ':' + pad(SENK.zaman.getMinutes());
   return 'Eşitleniyor…';
 }
+/* İşlemi yapanın e-postası yerine adı görünür (depo herkese açık: e-postalar değil, parmak izleri yazılı) */
+var KISI_ADLARI = { '18m771t': 'Umut', '1x526px': 'Umut', '16e1x7u': 'Murat', '4ch6hl': 'Ömer' };
+function epostaIzi(e) {
+  e = String(e || '').trim().toLowerCase();
+  var x = 5381;
+  for (var i = 0; i < e.length; i++) x = ((x * 33) ^ e.charCodeAt(i)) >>> 0;
+  return x.toString(36);
+}
 function kisaKim(e) {
   if (!e) return '';
-  var ad = (DB.ayarlar.kisiler || {})[e];
+  var ad = (DB.ayarlar.kisiler || {})[e] || KISI_ADLARI[epostaIzi(e)];
   return ad || e.split('@')[0];
 }
 setInterval(function () {

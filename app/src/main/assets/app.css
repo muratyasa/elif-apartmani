@@ -362,3 +362,44 @@ main { padding-bottom: 104px; }
 .daire-row .no { min-width: 40px; height: 40px; }
 .daire-row ~ .paid-btn, .paid-yer { flex: none; width: 38px; height: 38px; font-size: 19px; }
 .kalemler .chip-ik { display: none; }
+
+/* Sayfa içeriği uzayınca sekme şeritleri ve alanlar ezilmesin */
+.sheet-body > * { flex-shrink: 0; }
+
+/* Bildirimler */
+.bk-akis { gap: 10px; }
+.bk-gun { margin: 10px 2px 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.bk-gun:first-child { margin-top: 0; }
+.bk { padding: 14px 14px 6px; gap: 0; --bk: var(--accent); --bk-soft: var(--accent-soft); }
+.bk-kirmizi { --bk: var(--bad); --bk-soft: var(--bad-soft); }
+.bk-turuncu { --bk: var(--warn); --bk-soft: var(--warn-soft); }
+.bk-gri { --bk: var(--idle); --bk-soft: var(--idle-soft); }
+.bk-bas { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 10px; }
+.bk-ik { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--bk-soft); color: var(--bk); }
+.bk-ik svg { width: 22px; height: 22px; }
+.bk-baslik { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bk-baslik b { font-size: 17px; line-height: 1.25; }
+.bk-baslik small { font-size: 14px; color: var(--muted); line-height: 1.3; }
+.bk-sag { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.bk-sayi { font-size: 12px; font-weight: 700; color: var(--bk); background: var(--bk-soft); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.bk-saat { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bk-liste { border-top: 1px solid var(--line); }
+.bk-satir { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; background: none; border: 0; text-align: left; color: inherit; }
+.bk-satir + .bk-satir { border-top: 1px solid var(--line); }
+.bk-satir .no { min-width: 36px; height: 36px; font-size: 15px; border-radius: 9px; }
+.bk-kisi { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bk-ad { font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-detay { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bk-ok { flex: none; font-size: 22px; color: var(--muted); line-height: 1; }
+.bk-fazla { padding: 8px 0 10px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); }
+
+/* Genel hizalar */
+.card-head { align-items: center; }
+.card-head .card-title { margin: 0; }
+.card-head .chip { flex: none; }
+.row-main > .row-meta { display: block; font-size: 13px; color: var(--muted); opacity: .85; margin-top: 1px; }
+.row-main > .row-sub + .kalemler { margin-top: 3px; }
+.paid-yer { display: block; }
+.kalemler.genis { grid-template-columns: 44px 70px minmax(0, 1fr); }
+.kalemler .chip { padding: 1px 6px; }
+.daire-row { gap: 8px; }
