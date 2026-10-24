@@ -15,6 +15,12 @@ android {
         targetSdk 34
         versionCode surumNo
         versionName "1.0." + surumNo
+        // Android tarafının sürümü: bu sayı artınca APK güncellemesi gerekir, artmazsa sadece ekranlar güncellenir
+        buildConfigField "int", "NATIVE_API", file("../native_api.txt").text.trim()
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     signingConfigs {

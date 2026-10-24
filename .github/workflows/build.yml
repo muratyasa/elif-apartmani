@@ -23,6 +23,9 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Ekran sürümünü yaz
+        run: echo "{\"surum\": ${{ github.run_number }}, \"native\": $(cat native_api.txt)}" > app/src/main/assets/web.json
+
       - name: APK derle
         run: gradle assembleRelease --no-daemon --stacktrace
 
@@ -35,5 +38,10 @@ jobs:
           tag_name: v${{ github.run_number }}
           name: Sürüm 1.0.${{ github.run_number }}
           body: ${{ github.event.head_commit.message }}
-          files: ElifApartmani.apk
+          files: |
+            ElifApartmani.apk
+            app/src/main/assets/web.json
+            app/src/main/assets/index.html
+            app/src/main/assets/app.js
+            app/src/main/assets/app.css
           make_latest: true

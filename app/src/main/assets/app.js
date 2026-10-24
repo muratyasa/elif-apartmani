@@ -856,6 +856,7 @@ function vAyarlar() {
     '<button type="button" class="btn ghost block" data-act="csv">Excel için ödemeleri dışa aktar</button></section>';
 
   var surum = BR && BR.versionName ? BR.versionName() : 'tarayıcı';
+  if (BR && BR.webVersion) surum += ' · ekran ' + BR.webVersion();
   h += '<section class="card"><h2 class="card-title">Uygulama</h2>' +
     '<dl class="kv"><dt>Sürüm</dt><dd>' + esc(surum) + '</dd><dt>Daire</dt><dd>' + DB.daireler.length + '</dd><dt>Ödeme kaydı</dt><dd>' + DB.odemeler.length + '</dd></dl>' +
     '<div class="actions"><button type="button" class="btn ghost" data-act="guncelleme-kontrol">Güncelleme kontrol et</button>' +
@@ -1555,30 +1556,43 @@ function csvAktar() {
 }
 function guncellemeKontrol(elle) {
   S.elleKontrol = !!elle;
-  if (BR && BR.checkUpdate) BR.checkUpdate();
+  if (BR && BR.checkUpdate) { BR.checkUpdate(); if (elle) toast('Kontrol ediliyor…'); }
   else if (elle) toast('Güncelleme kontrolü sadece telefonda çalışır');
 }
-W.onUpdateInfo = function (body) {
-  var info = null;
-  try { info = body ? JSON.parse(body) : null; } catch (e) { info = null; }
-  var mevcut = BR && BR.versionCode ? BR.versionCode() : 0;
-  var n = info && info.tag_name ? parseInt(String(info.tag_name).replace(/\D/g, ''), 10) : 0;
-  if (n && n > mevcut) {
-    var url = APK_URL;
-    (info.assets || []).forEach(function (a) { if (/\.apk$/i.test(a.name)) url = a.browser_download_url; });
-    S.guncelleme = { surum: '1.0.' + n, notlar: info.body || '', url: url };
+/* Telefon tarafından gelen sonuç: ekran güncellemesi indirildi mi, APK mı gerekiyor? */
+W.onUpdateState = function (json) {
+  var r = {};
+  try { r = JSON.parse(json); } catch (e) { r = {}; }
+  if (r.durum === 'ekran') {
+    S.guncelleme = { tip: 'ekran' };
+  } else if (r.durum === 'apk') {
+    S.guncelleme = { tip: 'apk', url: r.apkUrl || APK_URL, notlar: r.notlar || '' };
   } else {
-    S.guncelleme = null;
-    if (S.elleKontrol) toast(info ? 'Uygulama güncel' : 'İnternete bağlanılamadı');
+    if (S.elleKontrol) toast(r.durum === 'hata' ? 'İnternete bağlanılamadı, sonra tekrar deneyin' : 'Uygulama güncel');
   }
   S.elleKontrol = false;
+  guncellemeBandi();
+};
+/* Eski sürümlerle uyum */
+W.onUpdateInfo = function () {};
+W.onApkProgress = function (y, hata) {
+  var g = S.guncelleme || {};
+  if (y >= 0) g.ilerleme = 'İndiriliyor… %' + y;
+  else if (y === -1) g.ilerleme = 'Kurulum ekranı açılıyor. Açılan pencerede “Güncelle”ye basın.';
+  else { g.ilerleme = ''; toast('Güncelleme indirilemedi: ' + (hata || 'bağlantı sorunu')); }
+  S.guncelleme = g;
   guncellemeBandi();
 };
 function guncellemeBandi() {
   var el = $('#update-banner'), g = S.guncelleme;
   if (!g) { el.hidden = true; return; }
-  el.innerHTML = '<div><b>Yeni sürüm hazır (' + esc(g.surum) + ')</b>' + (g.notlar ? '<br>' + esc(g.notlar.split('\n')[0]) : '') + '</div>' +
-    '<button type="button" class="btn small" data-act="guncelle">Güncelle</button>';
+  if (g.tip === 'ekran') {
+    el.innerHTML = '<div><b>Uygulama güncellendi</b><br>Yeni özellikler için yenileyin.</div>' +
+      '<button type="button" class="btn small" data-act="yenile">Yenile</button>';
+  } else {
+    el.innerHTML = '<div><b>Önemli güncelleme var</b><br>' + esc(g.ilerleme || 'Bir kez kurulması gerekiyor, kayıtlar silinmez.') + '</div>' +
+      (g.ilerleme ? '' : '<button type="button" class="btn small" data-act="guncelle">Güncelle</button>');
+  }
   el.hidden = false;
 }
 
@@ -1706,10 +1720,17 @@ var EYLEM = {
   'oto-klasor': function () { if (BR && BR.chooseBackupFolder) BR.chooseBackupFolder(); else toast('Sadece telefonda çalışır'); },
   'oto-simdi': function () { if (BR && BR.backupNow) { BR.backupNow(); toast('Yedekleniyor…'); } },
   'guncelleme-kontrol': function () { guncellemeKontrol(true); },
+  'yenile': function () { S.guncelleme = null; if (BR && BR.reloadApp) BR.reloadApp(); },
   'guncelle': function () {
-    var url = S.guncelleme ? S.guncelleme.url : APK_URL;
-    if (BR && BR.openUrl) BR.openUrl(url);
-    toast('İndirme başladı. Bitince dosyaya dokunup “Güncelle”yi seçin.');
+    var g = S.guncelleme || {};
+    if (!(BR && BR.installApk)) { if (BR && BR.openUrl) BR.openUrl(APK_URL); return; }
+    if (BR.canInstall && !BR.canInstall()) {
+      toast('Bir kerelik izin: açılan ekranda “Bu kaynaktan izin ver”i açıp geri dönün, sonra tekrar Güncelle’ye basın.');
+      BR.openInstallPermission();
+      return;
+    }
+    g.ilerleme = 'İndiriliyor…'; S.guncelleme = g; guncellemeBandi();
+    BR.installApk(g.url || APK_URL);
   }
 };
 var DEGISIM = {
@@ -1731,6 +1752,8 @@ W.onBack = function () {
   return false;
 };
 W.onAppResume = function () {
+  var simdi = Date.now();
+  if (!S.sonKontrol || simdi - S.sonKontrol > 3 * 3600 * 1000) { S.sonKontrol = simdi; if (!S.guncelleme) guncellemeKontrol(false); }
   if (!YIGIN.length) ciz();
   hatirlatmalariGonder();
 };

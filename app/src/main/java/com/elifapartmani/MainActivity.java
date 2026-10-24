@@ -35,7 +35,6 @@ public class MainActivity extends Activity {
     private static final int REQ_TREE = 15;
     private String pendingCall;
 
-    static final String RELEASE_API = "https://api.github.com/repos/muratyasa/elif-apartmani/releases/latest";
 
     private WebView web;
     private String pendingExport;
@@ -65,7 +64,7 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        web.loadUrl("file:///android_asset/index.html");
+        web.loadUrl(Updater.startUrl(this));
 
         Reminders.ensureChannel(this);
         Reminders.scheduleDaily(this);
@@ -229,23 +228,54 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void checkUpdate() {
+            Context app = getApplicationContext();
             new Thread(() -> {
-                String body = null;
+                JSONObject r = Updater.check(app);
+                callJs("window.onUpdateState ? window.onUpdateState(" + JSONObject.quote(r.toString()) + ") : 0");
+            }).start();
+        }
+
+        @JavascriptInterface
+        public int nativeApi() {
+            return BuildConfig.NATIVE_API;
+        }
+
+        @JavascriptInterface
+        public int webVersion() {
+            return Updater.currentWeb(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void reloadApp() {
+            runOnUiThread(() -> web.loadUrl(Updater.startUrl(MainActivity.this)));
+        }
+
+        @JavascriptInterface
+        public boolean canInstall() {
+            return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
+        }
+
+        @JavascriptInterface
+        public void openInstallPermission() {
+            runOnUiThread(() -> {
                 try {
-                    HttpURLConnection c = (HttpURLConnection) new URL(RELEASE_API).openConnection();
-                    c.setConnectTimeout(10000);
-                    c.setReadTimeout(10000);
-                    c.setRequestProperty("Accept", "application/vnd.github+json");
-                    if (c.getResponseCode() == 200) {
-                        try (InputStream is = c.getInputStream()) {
-                            body = readAll(is);
-                        }
-                    }
-                    c.disconnect();
+                    Intent i = new Intent("android.settings.MANAGE_UNKNOWN_APP_SOURCES", Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
                 } catch (Exception ignored) {
                 }
-                String arg = body == null ? "null" : JSONObject.quote(body);
-                callJs("window.onUpdateInfo && window.onUpdateInfo(" + arg + ")");
+            });
+        }
+
+        @JavascriptInterface
+        public void installApk(String url) {
+            Context app = getApplicationContext();
+            new Thread(() -> {
+                try {
+                    Updater.installApk(app, url, y -> callJs("window.onApkProgress && window.onApkProgress(" + y + ")"));
+                    callJs("window.onApkProgress && window.onApkProgress(-1)");
+                } catch (Exception e) {
+                    callJs("window.onApkProgress && window.onApkProgress(-2, " + JSONObject.quote(String.valueOf(e.getMessage())) + ")");
+                }
             }).start();
         }
 
