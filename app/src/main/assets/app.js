@@ -446,11 +446,20 @@ function vOzet() {
   yaklasan.sort(function (a, b) { return a.g - b.g || daireSirala(a.d, b.d); });
 
   var eksikAbone = DB.daireler.filter(function (d) { return !d.elkAbone && !d.ortak; }).length;
+  var eksikSu = DB.daireler.filter(function (d) { return !d.suAbone && !d.ortak; }).length;
+  var eksikPetek = DB.daireler.filter(function (d) { return !d.petek && !d.ortak; }).length;
+  var eksikler = [];
+  if (eksikAbone) eksikler.push(eksikAbone + ' dairenin elektrik abone numarası');
+  if (eksikSu) eksikler.push(eksikSu + ' dairenin su abone numarası');
+  if (eksikPetek) eksikler.push(eksikPetek + ' dairenin petek sayısı');
   var artislar = daireler().map(function (d) { var t = sonrakiArtis(d); return t && !artisYapildiMi(d, t) ? { d: d, t: t, g: gunFark(bugun(), t) } : null; })
     .filter(function (x) { return x && x.g <= 45; }).sort(function (a, b) { return a.g - b.g; });
   var depYok = daireler().filter(function (d) { return depozitoDurumu(d) === 'alinmadi'; });
   var depBilinmez = DB.daireler.filter(function (d) { return !d.bos && !depozitoDurumu(d); }).length;
-  var h = 
+  var h = (eksikler.length ? '<section class="card"><div class="card-head"><h2 class="card-title">Eksik bilgi</h2>' +
+    '<button type="button" class="link" data-act="abonelikler">Tamamla</button></div>' +
+    '<p class="note warn">' + eksikler.join(', ') + ' girilmemiş.</p></section>' : '') +
+    
     '<section class="card">' +
     '<h2 class="card-title">' + esc(ayAdi(ay)) + ' kira + aidat</h2>' +
     '<div class="big">' + TL(od) + ' <small>/ ' + TL(bek) + '</small></div>' +
