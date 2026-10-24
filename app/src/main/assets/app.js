@@ -40,6 +40,13 @@ function normalize(o) {
   if (!Array.isArray(d.odemeler)) d.odemeler = [];
   if (!Array.isArray(d.taksitler)) d.taksitler = [];
   if (!Array.isArray(d.komur)) d.komur = [];
+  /* Düzeltme: 9.834 ₺ petek başına fiyattı; ton fiyatı 16.390 ₺, petek başına 600 kg (tutarlar değişmez) */
+  d.komur.forEach(function (z) {
+    if (+z.tonFiyati === 9834 && !z.petekKg) {
+      z.tonFiyati = 16390; z.petekKg = 600;
+      Object.keys(z.daireler || {}).forEach(function (k) { var e = z.daireler[k]; if (e && +e.kg) e.kg = Math.round(+e.kg * 0.6); });
+    }
+  });
   IDX = null;
   return d;
 }
@@ -241,7 +248,7 @@ function petekBasinaKg(sez) {
 function komurDurum(d, sez) {
   if (!sez) return null;
   var e = (sez.daireler || {})[d.id];
-  var pb = petekBasinaKg(sez), petek = parseInt(d.petek, 10) || 0;
+  var pb = +sez.petekKg > 0 ? +sez.petekKg : petekBasinaKg(sez), petek = parseInt(d.petek, 10) || 0;
   if ((!e || !(+e.kg > 0 || +e.tutar > 0)) && pb > 0 && petek > 0) {
     e = { kg: Math.round(pb * petek * 10) / 10, tutar: null, otomatik: true };
   }
@@ -571,7 +578,7 @@ function vKomur() {
     var k = komurDurum(d, sez); if (!k) return;
     bek += k.beklenen; od += Math.min(k.odenen, k.beklenen); kg += k.kg; if (k.kalan > 0) borclu++;
   });
-  var pbk = petekBasinaKg(sez);
+  var pbk = +sez.petekKg > 0 ? +sez.petekKg : petekBasinaKg(sez);
   h += '<dl class="kv"><dt>Ton fiyatı</dt><dd>' + TL(sez.tonFiyati) + '</dd>' +
     (sez.toplamTon ? '<dt>Toplam alınan</dt><dd>' + NF.format(sez.toplamTon) + ' ton</dd>' : '') +
     (pbk ? '<dt>Petek başına</dt><dd>' + NF.format(Math.round(pbk * 10) / 10) + ' kg</dd>' : '') +
@@ -617,6 +624,8 @@ function komurAyarSayfasi() {
           return '<option value="' + o[0] + '"' + (+x.yuvarla === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
         }).join('') + '</select></div>' +
         '<p class="note" id="ks-ornek"></p>' +
+        '<div class="field"><label for="ks-pkg">Petek başına kömür (kg)</label><input id="ks-pkg" inputmode="decimal" value="' + esc(x.petekKg || '') + '" placeholder="Örn. 600"></div>' +
+        '<p class="note">Petek başına kg girilirse her dairenin kömürü = petek sayısı × bu kg olur.</p>' +
         '<div class="field"><label for="ks-ton">Toplam alınan kömür (ton, isteğe bağlı)</label><input id="ks-ton" inputmode="decimal" value="' + esc(x.toplamTon || '') + '" placeholder="Örn. 60"></div>' +
         '<p class="note" id="ks-petek"></p>' +
         '<div class="field"><label for="ks-son">Son ödeme günü (isteğe bağlı)</label><input id="ks-son" type="date" value="' + esc(x.sonOdeme || '') + '"></div>' +
@@ -646,7 +655,7 @@ function komurAyarKaydet() {
   var f = sayi($('#ks-fiyat').value);
   if (!(f > 0)) { toast('Ton fiyatını girin'); return; }
   var sez = komurSezonAl(S.sezon);
-  sez.tonFiyati = f; sez.yuvarla = +$('#ks-yuv').value; sez.sonOdeme = $('#ks-son').value || ''; sez.toplamTon = sayi($('#ks-ton').value);
+  sez.tonFiyati = f; sez.yuvarla = +$('#ks-yuv').value; sez.sonOdeme = $('#ks-son').value || ''; sez.toplamTon = sayi($('#ks-ton').value); sez.petekKg = sayi($('#ks-pkg').value);
   kaydet(); sayfaKapat(); yenile(); toast('Kömür fiyatı kaydedildi');
 }
 
@@ -1503,14 +1512,15 @@ function kurulumAc(k) {
       if (a) ode(did, 'aidat', ym, a, t);
     }
     if (d.petek) {
-      km[did] = { kg: d.petek * 1000, tutar: null };
-      var bor = d.petek * k.ton, o = r[8] === -1 ? bor : (r[8] || 0);
+      var pkg = k.petekKg || 1000;
+      km[did] = { kg: d.petek * pkg, tutar: null };
+      var bor = Math.round(d.petek * pkg / 1000 * k.ton * 100) / 100, o = r[8] === -1 ? bor : (r[8] || 0);
       if (o) ode(did, 'komur', k.sezon, o, gun0, 'İlk yükleme (ödeme tarihi bilinmiyor)');
     }
   });
   var v = bosVeri();
   v.daireler = ds; v.odemeler = od;
-  v.komur = [{ sezon: k.sezon, tonFiyati: k.ton, yuvarla: 0, sonOdeme: '', toplamTon: 0, daireler: km }];
+  v.komur = [{ sezon: k.sezon, tonFiyati: k.ton, petekKg: k.petekKg || 0, yuvarla: 0, sonOdeme: '', toplamTon: 0, daireler: km }];
   v.ayarlar.aidat = ad0;
   return v;
 }
