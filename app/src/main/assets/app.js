@@ -105,6 +105,7 @@ function depozitoDurumu(d) {
   if (d.depozitoDurum) return d.depozitoDurum;
   return (d.depozitoAlindi || +d.depozito > 0) ? 'alindi' : '';
 }
+function bosAdi(d) { return d.ortak ? 'Kiraya verilmiyor' + (d.not ? ' · ' + d.not : '') : 'Boş'; }
 function daireAdi(d) { return d ? 'Daire ' + d.no : 'Silinmiş daire'; }
 
 function vadeGunu(d, ym) {
@@ -424,7 +425,7 @@ function vOzet() {
   geciken.sort(function (a, b) { return b.toplam - a.toplam; });
   yaklasan.sort(function (a, b) { return a.g - b.g || daireSirala(a.d, b.d); });
 
-  var eksikAbone = DB.daireler.filter(function (d) { return !d.elkAbone; }).length;
+  var eksikAbone = DB.daireler.filter(function (d) { return !d.elkAbone && !d.ortak; }).length;
   var artislar = daireler().map(function (d) { var t = sonrakiArtis(d); return t && !artisYapildiMi(d, t) ? { d: d, t: t, g: gunFark(bugun(), t) } : null; })
     .filter(function (x) { return x && x.g <= 45; }).sort(function (a, b) { return a.g - b.g; });
   var depYok = daireler().filter(function (d) { return depozitoDurumu(d) === 'alinmadi'; });
@@ -514,7 +515,7 @@ function daireSatiri(d, ay) {
     ? '<button type="button" class="paid-btn" data-act="hizli-odendi" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' ' + esc(ayAdi(ay)) + ' kirası ödendi">✓</button>' : '';
   return satirSar(d, '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '">' +
     '<span class="no">' + esc(d.no) + '</span>' +
-    '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
+    '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
     '<span class="row-sub row-status">' + durum + (d.petek ? ' <span class="info-chip">' + d.petek + ' petek</span>' : '') + '</span></span></button>' + hizli);
 }
 function daireFiltreli() {
@@ -523,7 +524,7 @@ function daireFiltreli() {
     var k = kiraDurum(d, ay);
     if (S.filtre === 'odemeyen' && !(k.kod === 'gecikti' || k.kod === 'bekliyor' || k.kod === 'kismi')) return false;
     if (S.filtre === 'odeyen' && k.kod !== 'odendi') return false;
-    if (S.filtre === 'bos' && k.kod !== 'yok') return false;
+    if (S.filtre === 'bos' && (k.kod !== 'yok' || d.ortak)) return false;
     if (q) {
       var metin = (d.no + ' ' + (d.kiraci || '') + ' ' + (d.telefon || '') + ' ' + (d.elkAbone || '') + ' ' + (d.elkTesisat || '') + ' ' + (d.suAbone || '') + ' ' + (d.telefon2 || '') + ' ' + (d.kefilAd || '') + ' ' + (d.eskiKiracilar || []).map(function (k) { return k.ad; }).join(' ')).toLocaleLowerCase('tr');
       if (metin.indexOf(q) < 0) return false;
@@ -542,7 +543,7 @@ function vDaireler() {
     var k = kiraDurum(d, S.ay); say.hepsi++;
     if (k.kod === 'gecikti' || k.kod === 'bekliyor' || k.kod === 'kismi') say.odemeyen++;
     if (k.kod === 'odendi') say.odeyen++;
-    if (k.kod === 'yok') say.bos++;
+    if (k.kod === 'yok' && !d.ortak) say.bos++;
   });
   var f = [['hepsi', 'Hepsi'], ['odemeyen', 'Ödemeyen'], ['odeyen', 'Ödeyen'], ['bos', 'Boş']];
   return '<div class="filters">' + f.map(function (x) {
@@ -583,6 +584,7 @@ function vKomur() {
   h += '<section class="card"><div class="card-head"><h2 class="card-title">Daireler</h2></div>' +
     '<p class="note">Daireye dokunarak kilo girin veya değiştirin. Ödeme almak için yanındaki yeşil düğmeye basın.</p><div class="list">';
   daireler().forEach(function (d) {
+    if (d.ortak) return;
     var k = komurDurum(d, sez);
     var alt, durum;
     if (!k) { alt = 'Kömür yazılmamış'; durum = '<span class="row-sub">–</span>'; }
@@ -593,7 +595,7 @@ function vKomur() {
     var ode = k && k.kalan > 0 ? '<button type="button" class="paid-btn" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kömür ödemesi gir">₺</button>' : '';
     h += satirSar(d, '<button type="button" class="row" data-act="komur-kg" data-id="' + d.id + '">' +
       '<span class="no">' + esc(d.no) + '</span>' +
-      '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
+      '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
       '<span class="row-sub">' + esc(alt) + '</span>' +
       '<span class="row-sub row-status">' + durum + '</span></span></button>' + ode);
   });
@@ -887,7 +889,7 @@ function abonelikSayfasi() {
         if (!d.elkAbone && !d.elkTesisat) eksik++;
         h += '<div class="row abone-row">' +
           '<button type="button" class="no" data-act="daire-ac" data-id="' + d.id + '">' + esc(d.no) + '</button>' +
-          '<span class="row-main"><span class="row-title">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
+          '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' +
           aboneSatiri('Elektrik', 'Elektrik abone no', d.elkAbone) + aboneSatiri('Tesisat', 'Elektrik tesisat no', d.elkTesisat) + aboneSatiri('Su', 'Su abone no', d.suAbone) +
           '</span></div>';
       });
@@ -978,7 +980,7 @@ function daireSayfasi(id) {
         '<div class="row-title" style="font-size:20px">' + esc(d.bos ? 'Boş' : (d.kiraci || 'Kiracı adı girilmemiş')) + '</div></div>' +
         (d.bos ? '' : araDugmesi(d.telefon, d.kiraci)) + '</div>' +
         '<dl class="kv">' +
-        '<dt>Ad soyad</dt>' + (d.bos ? '<dd>Boş</dd>' : (d.kiraci ? '<dd>' + esc(d.kiraci) + '</dd>' : bos())) +
+        '<dt>Ad soyad</dt>' + (d.bos ? '<dd>' + esc(bosAdi(d)) + '</dd>' : (d.kiraci ? '<dd>' + esc(d.kiraci) + '</dd>' : bos())) +
         (d.telefon && !d.bos ? kopyaSatiri('Telefon', d.telefon, true) : '<dt>Telefon</dt>' + bos(d.bos ? '–' : '')) +
         '<dt>Giriş tarihi</dt>' + (d.bos ? bos('–') : '<dd>' + esc(d.girisTarihi ? tarihAdi(d.girisTarihi) : ayAdi(baslangicAyi(d))) + '</dd>') +
         '<dt>Aylık kira</dt>' + (+d.kira ? '<dd>' + TL(d.kira) + '</dd>' : bos()) +
@@ -1073,6 +1075,7 @@ function daireFormu(id, yeniKiraciMi) {
       return '<div class="form">' +
         '<h3 class="section-title">Kiracı</h3>' +
         '<label class="check"><input id="d-bos" type="checkbox"' + (x.bos ? ' checked' : '') + '> Daire şu an boş</label>' +
+        '<label class="check"><input id="d-ortak" type="checkbox"' + (x.ortak ? ' checked' : '') + '> Kiraya verilmiyor (ortak alan, aile vb.)</label>' +
         '<div id="kiraci-alanlari" class="form">' +
         alan('d-kiraci', 'Ad soyad', x.kiraci, ' autocomplete="off"') +
         '<div class="grid2">' + alan('d-tel', 'Telefon', x.telefon, ' type="tel"') + alan('d-tel2', 'Yakını / 2. telefon', x.telefon2, ' type="tel"') + '</div>' +
@@ -1124,7 +1127,8 @@ function daireKaydet(id) {
   if (!no) { toast('Daire no girin'); return; }
   var cakisan = DB.daireler.some(function (x) { return x.id !== id && String(x.no).toLocaleLowerCase('tr') === no.toLocaleLowerCase('tr'); });
   if (cakisan) { toast('Bu numarada başka bir daire var'); return; }
-  if (!$('#d-abone').value.trim()) { toast('Elektrik abone no girin, boş daire için de gerekli'); $('#d-abone').focus(); return; }
+  if ($('#d-ortak').checked) $('#d-bos').checked = true;
+  if (!$('#d-abone').value.trim() && !$('#d-ortak').checked) { toast('Elektrik abone no girin, boş daire için de gerekli'); $('#d-abone').focus(); return; }
   var tc = $('#d-tc').value.replace(/\s/g, '');
   if (tc && !/^\d{11}$/.test(tc)) { toast('TC kimlik no 11 haneli olmalı'); return; }
   var sozBas = $('#d-sozbas').value, sozBit = $('#d-sozbit').value;
@@ -1132,7 +1136,7 @@ function daireKaydet(id) {
   var mevcut = id ? daireBul(id) : null, bos = $('#d-bos').checked;
   var veri = {
     no: no, odemeGunu: Math.min(31, Math.max(1, parseInt($('#d-gun').value, 10) || 1)), kira: sayi($('#d-kira').value),
-    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), suAbone: $('#d-su').value.trim(), not: $('#d-not').value.trim(), bos: bos,
+    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), suAbone: $('#d-su').value.trim(), not: $('#d-not').value.trim(), bos: bos, ortak: $('#d-ortak').checked,
     petek: parseInt($('#d-petek').value, 10) || 0,
     aidatYaz: $('#d-aidatyaz').value.trim() === '' ? null : sayi($('#d-aidatyaz').value),
     aidatKis: $('#d-aidatkis').value.trim() === '' ? null : sayi($('#d-aidatkis').value)
