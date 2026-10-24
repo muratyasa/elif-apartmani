@@ -411,3 +411,10 @@ main { padding-bottom: 104px; }
 .dy-ev { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
 .paid-btn.dy-kismi { border-color: #C99A00; background: var(--warn-soft); color: var(--warn); }
 .paid-btn.dy-kismi:active { background: #C99A00; color: #fff; }
+
+/* Bildirim türleri: her tür kendi rengi (simge ve daire sayısı aynı renk) */
+.bk-turuncu { --bk: #C2410C; --bk-soft: #FDE8DC; }
+.bk-bordo { --bk: #8B1E3F; --bk-soft: #F6DDE5; }
+.bk-sari { --bk: #8F6A00; --bk-soft: #FBF0C9; }
+.bk-mor { --bk: #6B3FA0; --bk-soft: #ECE3F7; }
+.bk-yesil { --bk: #0F766E; --bk-soft: #D9F1EE; }

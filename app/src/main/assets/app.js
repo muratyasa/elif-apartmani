@@ -1432,8 +1432,8 @@ function bildirimRozeti() {
   el.hidden = !n;
 }
 var BILDIRIM_TUR = {
-  'kira': ['takvim', 'mavi'], 'kira-gec': ['uyari', 'kirmizi'], 'komur': ['alev', 'turuncu'], 'komur-gec': ['alev', 'kirmizi'],
-  'depozito': ['kilit', 'turuncu'], 'artis': ['artis', 'mavi'], 'sozlesme': ['fis', 'gri']
+  'kira': ['takvim', 'mavi'], 'kira-gec': ['uyari', 'kirmizi'], 'komur': ['alev', 'turuncu'], 'komur-gec': ['alev', 'bordo'],
+  'depozito': ['kilit', 'sari'], 'artis': ['artis', 'mor'], 'sozlesme': ['fis', 'yesil']
 };
 function bildirimTuru(x) {
   if (x.tur && BILDIRIM_TUR[x.tur]) return x.tur;
