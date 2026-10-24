@@ -40,6 +40,12 @@ function normalize(o) {
   if (!Array.isArray(d.odemeler)) d.odemeler = [];
   if (!Array.isArray(d.taksitler)) d.taksitler = [];
   if (!Array.isArray(d.komur)) d.komur = [];
+  /* Düzeltme (24.10.2026): Daire 17 girişi 15.07.2023 */
+  (d.daireler || []).forEach(function (x) {
+    if (x.no === '17' && x.kiraci === 'Esma Görünüş' && x.girisTarihi === '2026-07-15') {
+      x.girisTarihi = '2023-07-15'; x.baslangic = '2023-07'; x.takipBas = '2026-07';
+    }
+  });
   /* Düzeltme: 9.834 ₺ petek başına fiyattı; ton fiyatı 16.390 ₺, petek başına 600 kg (tutarlar değişmez) */
   d.komur.forEach(function (z) {
     if (+z.tonFiyati === 9834 && !z.petekKg) {
@@ -438,20 +444,7 @@ function vOzet() {
     .filter(function (x) { return x && x.g <= 45; }).sort(function (a, b) { return a.g - b.g; });
   var depYok = daireler().filter(function (d) { return depozitoDurumu(d) === 'alinmadi'; });
   var depBilinmez = DB.daireler.filter(function (d) { return !d.bos && !depozitoDurumu(d); }).length;
-  var h = (eksikAbone ? '<section class="card"><div class="card-head"><h2 class="card-title">Eksik bilgi</h2>' +
-    '<button type="button" class="link" data-act="abonelikler">Tamamla</button></div>' +
-    '<p class="note warn">' + eksikAbone + ' dairenin elektrik abone numarası girilmemiş.</p></section>' : '') +
-    (artislar.length ? '<section class="card"><h2 class="card-title">Kira artışı yaklaşanlar</h2><div class="list">' + artislar.map(function (x) {
-      return satirSar(x.d, '<button type="button" class="row" data-act="artis-ac" data-id="' + x.d.id + '"><span class="no">' + esc(x.d.no) + '</span>' +
-        '<span class="row-main"><span class="row-title">' + esc(x.d.kiraci || 'Kiracı') + '</span><span class="row-sub">' + esc(tarihAdi(x.t)) + ' · ' +
-        (x.g < 0 ? '<span style="color:var(--bad)">' + kalanGunMetni(x.g) + '</span>' : kalanGunMetni(x.g)) + ' · şu an ' + TL(x.d.kira) + '</span></span></button>');
-    }).join('') + '</div></section>' : '') +
-    (depYok.length || depBilinmez ? '<section class="card"><h2 class="card-title">Depozito</h2>' +
-      (depYok.length ? '<p class="note warn">' + depYok.length + ' dairenin depozitosu alınmadı.</p><div class="list">' + depYok.map(function (d) {
-        return satirSar(d, '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '"><span class="no">' + esc(d.no) + '</span>' +
-          '<span class="row-main"><span class="row-title">' + esc(d.kiraci || 'Kiracı') + '</span><span class="row-sub">' + (+d.kira ? 'Beklenen: ' + TL(d.kira) + ' (1 kira)' : 'Depozito bekleniyor') + '</span></span></button>');
-      }).join('') + '</div>' : '') +
-      (depBilinmez ? '<p class="note">' + depBilinmez + ' dairenin depozito durumu girilmemiş.</p>' : '') + '</section>' : '') +
+  var h = 
     '<section class="card">' +
     '<h2 class="card-title">' + esc(ayAdi(ay)) + ' kira + aidat</h2>' +
     '<div class="big">' + TL(od) + ' <small>/ ' + TL(bek) + '</small></div>' +
@@ -1007,7 +1000,7 @@ function daireSayfasi(id) {
         '<dt>Aidat</dt>' + (d.bos ? bos('–') : '<dd>' + aidatMetin + '</dd>') +
         '<dt>Depozito</dt>' + (d.bos ? bos('–') : depozitoDurumu(d) === 'alinmadi' ? '<dd class="missing bad">Alınmadı</dd>'
           : depozitoDurumu(d) === 'alindi' ? '<dd>' + (+d.depozito ? TL(d.depozito) : 'Alındı') + ' ✓</dd>' : bos()) +
-        (d.elkAbone ? kopyaSatiri('Elektrik abone', d.elkAbone) : '<dt>Elektrik abone</dt><dd class="missing bad">Girilmemiş</dd>') +
+        (d.elkAbone ? kopyaSatiri('Elektrik abone', d.elkAbone) : '<dt>Elektrik abone</dt>' + bos()) +
         (d.suAbone ? kopyaSatiri('Su abone', d.suAbone) : '<dt>Su abone</dt>' + bos()) +
         '<dt>Petek sayısı</dt>' + (d.petek ? '<dd>' + d.petek + '</dd>' : bos()) +
         '<dt>Kömür' + (kSz ? ' ' + esc(kSz.sezon) : '') + '</dt>' + (kDu ? '<dd>' + TL(kDu.odenen) + ' / ' + TL(kDu.beklenen) + (kDu.kalan > 0 ? ' · <span style="color:var(--bad)">' + TL(kDu.kalan) + ' kaldı</span>' : ' ✓') + '</dd>' : bos(d.bos ? '–' : 'Yazılmamış')) +
@@ -1118,7 +1111,7 @@ function daireFormu(id, yeniKiraciMi) {
         alan('d-petek', 'Petek sayısı', x.petek || '', ' type="number" inputmode="numeric" min="0" max="50"') + '</div>' +
         '<div class="grid2">' + alan('d-aidatyaz', 'Özel normal aidat (₺)', x.aidatYaz === undefined || x.aidatYaz === null ? '' : x.aidatYaz, ' inputmode="decimal" placeholder="Boşsa genel: ' + esc(DB.ayarlar.aidat.yaz) + '"') +
         alan('d-aidatkis', 'Özel kış aidatı (₺)', x.aidatKis === undefined || x.aidatKis === null ? '' : x.aidatKis, ' inputmode="decimal" placeholder="Boşsa genel: ' + esc(DB.ayarlar.aidat.kis) + '"') + '</div>' +
-        '<div class="grid2">' + alan('d-abone', 'Elektrik abone no (zorunlu)', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
+        '<div class="grid2">' + alan('d-abone', 'Elektrik abone no', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
         alan('d-su', 'Su abone no', x.suAbone, ' inputmode="numeric"') +
         '<div class="field"><label for="d-not">Daire notu</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
         '<button type="button" class="btn block" data-act="daire-kaydet" data-id="' + (d ? d.id : '') + '">Kaydet</button>' +
@@ -1147,7 +1140,6 @@ function daireKaydet(id) {
   var cakisan = DB.daireler.some(function (x) { return x.id !== id && String(x.no).toLocaleLowerCase('tr') === no.toLocaleLowerCase('tr'); });
   if (cakisan) { toast('Bu numarada başka bir daire var'); return; }
   if ($('#d-ortak').checked) $('#d-bos').checked = true;
-  if (!$('#d-abone').value.trim() && !$('#d-ortak').checked) { toast('Elektrik abone no girin, boş daire için de gerekli'); $('#d-abone').focus(); return; }
   var tc = $('#d-tc').value.replace(/\s/g, '');
   if (tc && !/^\d{11}$/.test(tc)) { toast('TC kimlik no 11 haneli olmalı'); return; }
   var sozBas = $('#d-sozbas').value, sozBit = $('#d-sozbit').value;
@@ -1171,6 +1163,12 @@ function daireKaydet(id) {
     var sonCikis = eski.length ? eski[eski.length - 1].cikis : '';
     if (sonCikis && kiraciVeri.baslangic && kiraciVeri.baslangic <= sonCikis) { toast('Giriş tarihi, önceki kiracının çıkış ayından sonra olmalı'); return; }
     Object.assign(veri, kiraciVeri);
+  }
+  if (mevcut && veri.baslangic && veri.baslangic < baslangicAyi(mevcut) && !mevcut.bos) {
+    /* Giriş tarihi geriye alındıysa eski aylar borç sayılmasın: takip eski başlangıçtan devam eder */
+    var ilkOdeme = DB.odemeler.filter(function (o) { return o.daireId === mevcut.id && o.tur === 'kira'; })
+      .reduce(function (m, o) { return !m || o.donem < m ? o.donem : m; }, '');
+    veri.takipBas = ilkOdeme && ilkOdeme < baslangicAyi(mevcut) ? ilkOdeme : baslangicAyi(mevcut);
   }
   if (mevcut) Object.assign(mevcut, veri);
   else DB.daireler.push(Object.assign({ id: yeniId(), olusturma: bugun(), eskiKiracilar: [] }, veri));
