@@ -19,7 +19,7 @@ function bosVeri() {
     odemeler: [],
     taksitler: [],
     komur: [],
-    ayarlar: { hatirlatGun: [7, 1], gecikme: true, gecikmeSiklik: 1, saat: 10, bildirimGoruldu: '', aidat: { yaz: 300, kis: 1300, kisBas: 10, kisBit: 4 } },
+    ayarlar: { hatirlatGun: [0], gecikme: true, gecikmeSiklik: 3, bildirimDuzeni: 2, saat: 10, bildirimGoruldu: '', aidat: { yaz: 300, kis: 1300, kisBas: 10, kisBit: 4 } },
     sonYedek: ''
   };
 }
@@ -36,6 +36,10 @@ function normalize(o) {
   var d = Object.assign(b, o || {});
   d.ayarlar = Object.assign(bosVeri().ayarlar, (o && o.ayarlar) || {});
   d.ayarlar.aidat = Object.assign(bosVeri().ayarlar.aidat, (o && o.ayarlar && o.ayarlar.aidat) || {});
+  /* Yeni bildirim düzeni (24.10.2026): ödeme günü + ödenmezse 3 günde bir */
+  if (!(o && o.ayarlar && o.ayarlar.bildirimDuzeni >= 2)) {
+    d.ayarlar.hatirlatGun = [0]; d.ayarlar.gecikme = true; d.ayarlar.gecikmeSiklik = 3; d.ayarlar.bildirimDuzeni = 2;
+  }
   if (!Array.isArray(d.daireler)) d.daireler = [];
   if (!Array.isArray(d.odemeler)) d.odemeler = [];
   if (!Array.isArray(d.taksitler)) d.taksitler = [];
@@ -290,16 +294,11 @@ function hatirlatmaListesi() {
     kovalar[k].satirlar.push(kisi(d) + ' – ' + txt);
     if (kovalar[k].ids.indexOf(d.id) < 0) kovalar[k].ids.push(d.id);
   }
-  /* Gecikme: ödeme gününün ertesi günü, sonra seçilen sıklıkta (her gün / 3 günde bir / pazartesi) hepsi tek bildirimde */
-  var siklik = +A.gecikmeSiklik || 1, topluGunler = [];
-  for (var t = gun0; t <= son; t = gunEkle(t, 1)) {
-    var dd = toDate(t);
-    if (siklik === 1 || (siklik === 7 && dd.getDay() === 1) || (siklik === 3 && Math.floor(dd.getTime() / 86400000) % 3 === 0)) topluGunler.push(t);
-  }
+  /* Gecikme: ödeme gününden N gün sonra, ödenmezse yine N günde bir (N = seçilen sıklık) */
+  var siklik = +A.gecikmeSiklik || 3;
   function gecikmeGunleri(vade) {
-    var ilk = gunEkle(vade, 1), l = [];
-    if (ilk >= gun0 && ilk <= son) l.push(ilk);
-    topluGunler.forEach(function (p) { if (p > ilk) l.push(p); });
+    var l = [];
+    for (var t = gunEkle(vade, siklik); t <= son; t = gunEkle(t, siklik)) if (t >= gun0) l.push(t);
     return l;
   }
   function kisi(d) { return 'Daire ' + d.no + (d.kiraci ? ' (' + d.kiraci + ')' : ''); }
@@ -816,7 +815,7 @@ function vAyarlar() {
       return '<button type="button" class="filter' + (on ? ' on' : '') + '" data-act="hatirlat-gun" data-v="' + s[0] + '" aria-pressed="' + on + '">' + s[1] + '</button>';
     }).join('') + '</div></div>' +
     '<div class="field"><label for="a-gecikme">Ödeme gecikince ne sıklıkla hatırlatılsın?</label><select id="a-gecikme" data-change="a-gecikme">' +
-    [['0', 'Hatırlatma yapma'], ['1', 'Her gün (ödenene kadar)'], ['3', '3 günde bir'], ['7', 'Haftada bir (pazartesi)']].map(function (o) {
+    [['0', 'Hatırlatma yapma'], ['1', 'Ertesi gün, sonra her gün'], ['3', '3 gün sonra, sonra 3 günde bir'], ['7', '7 gün sonra, sonra haftada bir']].map(function (o) {
       var sec = A.gecikme ? String(+A.gecikmeSiklik || 1) : '0';
       return '<option value="' + o[0] + '"' + (sec === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
     }).join('') + '</select></div>' +
