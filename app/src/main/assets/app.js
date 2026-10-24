@@ -1043,7 +1043,16 @@ function daireSayfasi(id) {
         (d.suAbone ? kopyaSatiri('Su abone', d.suAbone) : '<dt>Su abone</dt>' + bos()) +
         '<dt>Petek sayısı</dt>' + (d.petek ? '<dd>' + d.petek + '</dd>' : bos()) +
         '<dt>Kömür' + (kSz ? ' ' + esc(kSz.sezon) : '') + '</dt>' + (kDu ? '<dd>' + TL(kDu.odenen) + ' / ' + TL(kDu.beklenen) + (kDu.kalan > 0 ? ' · <span style="color:var(--bad)">' + TL(kDu.kalan) + ' kaldı</span>' : ' ✓') + '</dd>' : bos(d.bos ? '–' : 'Yazılmamış')) +
-        '<dt>Toplam borç</dt><dd style="color:' + (borcTop ? 'var(--bad)' : 'var(--ok)') + '">' + (borcTop ? TL(borcTop) : 'Yok') + '</dd>' +
+        (function () {
+          /* Toplam borç = gecikmiş kira/aidat + kalan kömür + alınmamış depozito */
+          var kom = kDu ? kDu.kalan : 0, dep = depozitoDurumu(d) === 'alinmadi' ? (+d.depozito || +d.kira || 0) : 0;
+          var top = borcTop + kom + dep, parca = [];
+          if (borcTop) parca.push('Kira/aidat ' + TL(borcTop));
+          if (kom) parca.push('Kömür ' + TL(kom));
+          if (dep) parca.push('Depozito ' + TL(dep));
+          return '<dt>Toplam borç</dt><dd style="color:' + (top ? 'var(--bad)' : 'var(--ok)') + '">' + (top ? TL(top) : 'Yok') +
+            (parca.length > 1 || (parca.length === 1 && !borcTop) ? '<br><small class="muted">' + parca.join(' · ') + '</small>' : '') + '</dd>';
+        })() +
         '</dl>' +
         '<div class="actions">' +
         (!d.bos ? '<button type="button" class="btn" data-act="odeme-daire" data-id="' + d.id + '">Ödeme gir</button>' : '') +
