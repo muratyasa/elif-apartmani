@@ -414,7 +414,8 @@ var IK = {
   zil: 'M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22zm7-6V11c0-3.3-2-6-5-6.7V3.5a2 2 0 0 0-4 0v.8C7 5 5 7.7 5 11v5l-2 2v1h18v-1l-2-2z',
   bulut: 'M19.4 10A7.5 7.5 0 0 0 5.4 8 6 6 0 0 0 6 20h13a5 5 0 0 0 .4-10z',
   kaydet: 'M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z',
-  kalem: 'M3 17.3V21h3.8L17.8 9.9 14 6.2 3 17.3zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8L19 8.8 20.7 7z'
+  kalem: 'M3 17.3V21h3.8L17.8 9.9 14 6.2 3 17.3zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8L19 8.8 20.7 7z',
+  ev: 'M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z'
 };
 function ikon(ad, sinif) {
   return '<svg class="' + (sinif || 'ik') + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + IK[ad] + '"/></svg>';
@@ -666,9 +667,14 @@ function vKomur() {
     var k = komurDurum(d, sez), alt;
     if (!k) alt = '<span class="row-sub">' + (d.petek ? 'Kömür yazılmamış' : 'Petek sayısı girilmemiş') + '</span>';
     else alt = (d.bos ? '<span class="row-sub">Ev sahibi payı</span>' : '') + '<span class="kalemler genis">' +
-      '<span class="kalem"><span class="k-ad">Tutar</span><span class="k-tutar">' + TL(k.beklenen) + '</span>' + chip(k.kod) + '</span>' +
+      '<span class="kalem"><span class="k-ad">Tutar</span><span class="k-tutar">' + TL(k.beklenen) + '</span>' + ((d.bos || d.ortak) && k.kod !== 'odendi' ? '<span></span>' : chip(k.kod)) + '</span>' +
       (k.kalan > 0 && k.odenen > 0 ? '<span class="kalem"><span class="k-ad">Kalan</span><span class="k-tutar' + (k.kod === 'gecikti' ? ' bad' : '') + '">' + TL(k.kalan) + '</span><span></span></span>' : '') + '</span>';
-    var ode = k && k.kalan > 0 ? '<button type="button" class="paid-btn" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kömür ödemesi gir">₺</button>' : '<span class="paid-yer"></span>';
+    var ode;
+    if (k && (d.bos || d.ortak)) ode = '<span class="dy dy-ev" title="Ev sahibi payı" aria-label="Ev sahibi payı">' + ikon('ev') + '</span>';
+    else if (k && k.kalan > 0 && k.odenen > 0) ode = '<button type="button" class="paid-btn dy-kismi" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kalan kömür ödemesini gir">₺</button>';
+    else if (k && k.kalan > 0) ode = '<button type="button" class="paid-btn" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kömür ödemesi gir">₺</button>';
+    else if (k && k.beklenen > 0) ode = '<span class="dy dy-ok" aria-label="Kömür tamamen ödendi">' + ikon('onay') + '</span>';
+    else ode = '<span class="paid-yer"></span>';
     h += '<div class="row-wrap"><button type="button" class="row daire-row" data-act="komur-kg" data-id="' + d.id + '">' +
       '<span class="no">' + esc(d.no) + '</span>' +
       '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' + alt + '</span>' +

@@ -403,3 +403,11 @@ main { padding-bottom: 104px; }
 .kalemler.genis { grid-template-columns: 44px 70px minmax(0, 1fr); }
 .kalemler .chip { padding: 1px 6px; }
 .daire-row { gap: 8px; }
+
+/* Kömür listesi sağdaki yuvarlak işaretler: ödendi yeşil ✓, kısmi sarı ₺, ev sahibi payı kırmızı ev */
+.dy { flex: none; width: 38px; height: 38px; border-radius: 999px; display: grid; place-items: center; border: 2px solid; }
+.dy svg { width: 20px; height: 20px; }
+.dy-ok { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.dy-ev { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.paid-btn.dy-kismi { border-color: #C99A00; background: var(--warn-soft); color: var(--warn); }
+.paid-btn.dy-kismi:active { background: #C99A00; color: #fff; }
