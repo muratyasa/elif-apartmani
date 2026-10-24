@@ -294,3 +294,55 @@ textarea { min-height: 80px; resize: vertical; }
 .kv dd.missing.bad { color: var(--bad); font-weight: 600; }
 .muted { color: var(--muted); font-weight: 500; }
 details.note summary { font-weight: 600; color: var(--accent); cursor: pointer; padding: 4px 0; }
+
+/* WhatsApp düğmesi */
+.wa-btn {
+  flex: none; border: 0; width: 44px; height: 44px; border-radius: 999px;
+  background: #E3F6EA; color: #128C4A; display: inline-grid; place-items: center;
+}
+.wa-btn svg { width: 22px; height: 22px; }
+.head-btns { display: flex; gap: 8px; flex: none; }
+
+/* Gelir raporu */
+.yil-nav { display: flex; align-items: center; justify-content: center; gap: 18px; font-size: 20px; }
+.grafik { position: relative; width: 100%; }
+.grafik svg { width: 100%; height: 190px; display: block; overflow: visible; }
+.g-cizgi { stroke: var(--line); stroke-width: 1; }
+.g-eksen { fill: var(--muted); font-size: 10px; font-family: inherit; }
+.g-sutun { fill: var(--accent); }
+.g-hedef { fill: transparent; cursor: pointer; }
+.g-ipucu { margin-top: 6px; font-size: 15px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.rapor-liste { display: flex; flex-direction: column; }
+.rapor-satir { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.rapor-satir:first-child { border-top: 0; }
+.mini-bar { display: block; height: 6px; border-radius: 99px; background: var(--idle-soft); margin-top: 6px; overflow: hidden; }
+.mini-bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+
+/* Arıza / iş defteri */
+.is-satir { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.card > .is-satir:first-of-type { border-top: 0; }
+.is-kutu {
+  flex: none; width: 30px; height: 30px; margin-top: 2px; border-radius: 8px;
+  border: 2px solid var(--accent); background: var(--surface); color: var(--surface); font-weight: 700;
+}
+.is-satir.yapildi .is-kutu { background: var(--ok); border-color: var(--ok); }
+.is-satir.yapildi .row-title { text-decoration: line-through; color: var(--muted); }
+.is-metin { border: 0; background: none; text-align: left; padding: 0; min-width: 0; flex: 1; }
+.is-metin .row-title { white-space: normal; }
+
+/* ---------- Simgeler ve düzen ---------- */
+.card-title { display: flex; align-items: center; gap: 8px; }
+.ct-ik { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.chip { display: inline-flex; align-items: center; gap: 4px; }
+.chip-ik { width: 13px; height: 13px; flex: none; }
+.ok-kart { flex-direction: row; align-items: center; gap: 14px; }
+.ok-ik { width: 30px; height: 30px; flex: none; color: var(--ok); background: var(--ok-soft); border-radius: 999px; padding: 5px; }
+.ik-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.ik-btn .ik { width: 20px; height: 20px; }
+.daire-bas .tenant-head { align-items: flex-start; }
+.daire-kimlik { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+main { padding-bottom: 104px; }
+.sheet-body { padding-bottom: 104px; }
+
+.row-main > .row-title, .row-main > .row-sub { display: block; }
+.row-main > .row-sub.row-status { display: flex; }

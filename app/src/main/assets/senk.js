@@ -10,7 +10,8 @@ var FB = {
   kok: 'apartman/elif'
 };
 var FS_URL = 'https://firestore.googleapis.com/v1/projects/' + FB.proje + '/databases/(default)/documents';
-var KOLLAR = ['daireler', 'odemeler', 'genel'];
+var LISTELER = ['daireler', 'odemeler', 'notlar', 'silinenler'];
+var KOLLAR = LISTELER.concat(['genel']);
 var SENK = { mesgul: false, tekrar: false, zaman: null, hata: '', zamanlayici: null, sonCekim: 0 };
 
 /* ---------- HTTP ---------- */
@@ -104,18 +105,21 @@ function genelVeri() {
   return { ayarlar: a, komur: DB.komur, taksitler: DB.taksitler };
 }
 function yerelHarita() {
-  var m = { daireler: {}, odemeler: {}, genel: {} };
-  DB.daireler.forEach(function (d) { m.daireler[d.id] = JSON.stringify(d); });
-  var e = (oturum() || {}).email || '';
-  DB.odemeler.forEach(function (o) { if (!o.kim && e) o.kim = e; m.odemeler[o.id] = JSON.stringify(o); });
+  var m = { genel: {} }, e = (oturum() || {}).email || '';
+  LISTELER.forEach(function (kol) {
+    m[kol] = {};
+    (DB[kol] || []).forEach(function (x) { if (kol === 'odemeler' && !x.kim && e) x.kim = e; m[kol][x.id] = JSON.stringify(x); });
+  });
   m.genel.ayar = JSON.stringify(genelVeri());
   return m;
 }
 function belgeAdi(kol, id) { return 'projects/' + FB.proje + '/databases/(default)/documents/' + FB.kok + '/' + kol + '/' + id; }
 
+function bosYansi() { var y = { genel: {} }; LISTELER.forEach(function (k) { y[k] = {}; }); return y; }
+
 /* ---------- Gönder: yereldeki değişiklikleri sunucuya yaz ---------- */
 function gonder() {
-  var y = DB._yansi || { daireler: {}, odemeler: {}, genel: {} }, m = yerelHarita(), yazilar = [], izler = [];
+  var y = DB._yansi || bosYansi(), m = yerelHarita(), yazilar = [], izler = [];
   var kim = (oturum() || {}).email || '';
   KOLLAR.forEach(function (kol) {
     var yk = y[kol] || {}, mk = m[kol];
@@ -140,7 +144,7 @@ function gonder() {
   return parcalar.reduce(function (p, parca) {
     return p.then(function () {
       return fsIstek('POST', FS_URL + ':commit', { writes: parca[0] }).then(function () {
-        var yy = DB._yansi || (DB._yansi = { daireler: {}, odemeler: {}, genel: {} });
+        var yy = DB._yansi || (DB._yansi = bosYansi());
         parca[1].forEach(function (z) {
           yy[z[0]] = yy[z[0]] || {};
           if (z[2] === null) delete yy[z[0]][z[1]]; else yy[z[0]][z[1]] = z[2];
@@ -165,7 +169,7 @@ function sorgu(kol, son) {
 }
 function uygula(kol, belgeler) {
   if (!belgeler.length) return false;
-  var y = DB._yansi || (DB._yansi = { daireler: {}, odemeler: {}, genel: {} });
+  var y = DB._yansi || (DB._yansi = bosYansi());
   y[kol] = y[kol] || {};
   belgeler.forEach(function (b) {
     if (kol === 'genel') {
@@ -177,7 +181,7 @@ function uygula(kol, belgeler) {
       y.genel[b.id] = JSON.stringify(genelVeri());
       return;
     }
-    var liste = DB[kol], i = -1;
+    var liste = DB[kol] || (DB[kol] = []), i = -1;
     for (var k = 0; k < liste.length; k++) if (liste[k].id === b.id) { i = k; break; }
     if (b.silindi || !b.json) {
       if (i >= 0) liste.splice(i, 1);
@@ -207,14 +211,14 @@ function cek() {
 
 /* ---------- İlk eşitleme: sunucuda kayıt varsa onlar esas, yoksa bu telefondakiler yüklenir ---------- */
 function ilkEsitleme() {
-  DB._son = {}; DB._yansi = { daireler: {}, odemeler: {}, genel: {} };
+  DB._son = {}; DB._yansi = bosYansi();
   var gelen = {};
   return KOLLAR.reduce(function (p, kol) {
     return p.then(function () { return sorgu(kol, '').then(function (b) { gelen[kol] = b; }); });
   }, Promise.resolve()).then(function () {
     var dolu = (gelen.daireler || []).some(function (b) { return !b.silindi && b.json; });
     if (dolu) {
-      DB.daireler = []; DB.odemeler = [];
+      LISTELER.forEach(function (k) { DB[k] = []; });
       KOLLAR.forEach(function (kol) { uygula(kol, gelen[kol] || []); });
       IDX = null; kaydetYerel(); hatirlatmalariGonder();
       return 'cekildi';
@@ -229,7 +233,7 @@ function ilkEsitleme() {
 
 /* ---------- Yedekten yükleme sonrası: sunucuyu bu telefondakiyle aynı yap ---------- */
 function tamGonder() {
-  var y = { daireler: {}, odemeler: {}, genel: {} };
+  var y = bosYansi();
   return KOLLAR.reduce(function (p, kol) {
     return p.then(function () {
       return sorgu(kol, '').then(function (b) { b.forEach(function (x) { if (!x.silindi) y[kol][x.id] = '__sunucu__'; }); });
