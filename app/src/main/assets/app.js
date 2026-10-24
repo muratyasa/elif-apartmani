@@ -56,7 +56,7 @@ function normalize(o) {
   });
   /* Düzeltme (24.10.2026): Daire 30 ve 32'nin Ekim 2026 kira artışı yapıldı */
   (d.daireler || []).forEach(function (x) {
-    if ((x.no === '30' || x.no === '32') && x.girisTarihi === '2025-10-15' && !(x.kiraArtislari || []).length) {
+    if ((x.no === '24' || x.no === '30' || x.no === '32') && x.girisTarihi === '2025-10-15' && !(x.kiraArtislari || []).length) {
       x.kiraArtislari = [{ ay: '2026-10', eski: +x.kira || 0, yeni: +x.kira || 0, not: 'Ekim 2026 artışı yapıldı' }];
     }
   });
