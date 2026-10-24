@@ -400,7 +400,8 @@ function vKurulum() {
     '</div></section>' +
     '<section class="card"><h2 class="card-title">Yedeğiniz var mı?</h2>' +
     '<p class="note">Daha önce aldığınız bir yedek dosyasını yükleyebilirsiniz.</p>' +
-    '<button type="button" class="btn ghost block" data-act="yedek-yukle">Yedekten geri yükle</button></section>';
+    '<button type="button" class="btn ghost block" data-act="yedek-yukle">Yedekten geri yükle</button>' +
+    '<button type="button" class="btn ghost block" data-act="metin-ac">Metinden yükle (kopyala-yapıştır)</button></section>';
 }
 
 function vOzet() {
@@ -843,6 +844,7 @@ function vAyarlar() {
     (DB.sonYedek ? '<p class="note">Son elle yedek: ' + esc(tarihAdi(DB.sonYedek)) + '</p>' : '') +
     '<div class="actions"><button type="button" class="btn ghost" data-act="yedek-al">Yedek al</button>' +
     '<button type="button" class="btn ghost" data-act="yedek-yukle">Yedekten yükle</button></div>' +
+    '<button type="button" class="btn ghost block" data-act="metin-ac">Metinden yükle (kopyala-yapıştır)</button>' +
     '<button type="button" class="btn ghost block" data-act="csv">Excel için ödemeleri dışa aktar</button></section>';
 
   var surum = BR && BR.versionName ? BR.versionName() : 'tarayıcı';
@@ -1472,9 +1474,60 @@ W.onExportDone = function (ok) {
   toast(ok ? 'Dosya kaydedildi' : 'Dosya kaydedilmedi');
   yenile();
 };
+/* Kısa kurulum metni: her daire bir satır; ödemeler kurala göre üretilir */
+function kurulumAc(k) {
+  var son = k.sonAy, gun0 = bugun(), n = 0, ds = [], od = [], km = {};
+  function id() { n++; return 'k' + Date.now().toString(36) + n; }
+  function ode(did, tur, donem, tutar, tarih, not) {
+    od.push({ id: id(), kayit: new Date().toISOString(), toplu: 'ilk-yukleme', daireId: did, tur: tur, donem: donem, tutar: tutar,
+      tarih: tarih > gun0 ? gun0 : tarih, sekil: 'Nakit', aciklama: '', not: not || 'İlk yükleme' });
+  }
+  var ad0 = k.aidat || { yaz: 300, kis: 1300, kisBas: 10, kisBit: 4 };
+  function kisMi(ym) { var m = +ym.slice(5); return ad0.kisBas <= ad0.kisBit ? (m >= ad0.kisBas && m <= ad0.kisBit) : (m >= ad0.kisBas || m <= ad0.kisBit); }
+  k.d.forEach(function (r) {
+    // [no, ad, giriş, kira, depozito, depDurum, elektrik, petek, kömürÖdenen(-1 = hepsi), telefon, takipBaşlangıcı, not, bayrak]
+    var no = r[0], ad = r[1], giris = r[2], did = 'd' + (no < 10 ? '0' : '') + no, bay = r[12] || '';
+    var bos = !ad, ortak = bay.indexOf('O') >= 0, dahil = bay.indexOf('A') >= 0, gun1 = bay.indexOf('1') >= 0;
+    var d = { id: did, no: String(no), olusturma: gun0, odemeGunu: 15, kira: r[3] || 0, petek: r[7] || 0, elkAbone: r[6] || '', elkTesisat: '', suAbone: '',
+      not: r[11] || '', bos: bos, ortak: ortak, eskiKiracilar: [], kiraci: ad || '', telefon: r[9] || '', telefon2: '', tc: '',
+      girisTarihi: giris || '', baslangic: giris ? giris.slice(0, 7) : '', depozito: r[4] || 0, depozitoDurum: r[5] || '', depozitoAlindi: r[5] === 'alindi',
+      sozlesmeBas: '', sozlesmeBit: '', kefilAd: '', kefilTel: '', kiraciNot: dahil ? 'Kiraya aidat dahil' : '',
+      aidatYaz: dahil ? 0 : null, aidatKis: dahil ? 0 : null };
+    if (r[10]) d.takipBas = r[10];
+    ds.push(d);
+    if (bos) return;
+    for (var ym = d.takipBas && d.takipBas > d.baslangic ? d.takipBas : d.baslangic; ym <= son; ym = ayEkle(ym, 1)) {
+      var t = ym + (gun1 ? '-01' : '-15');
+      ode(did, 'kira', ym, d.kira, t);
+      var a = dahil ? 0 : (kisMi(ym) ? ad0.kis : ad0.yaz);
+      if (a) ode(did, 'aidat', ym, a, t);
+    }
+    if (d.petek) {
+      km[did] = { kg: d.petek * 1000, tutar: null };
+      var bor = d.petek * k.ton, o = r[8] === -1 ? bor : (r[8] || 0);
+      if (o) ode(did, 'komur', k.sezon, o, gun0, 'İlk yükleme (ödeme tarihi bilinmiyor)');
+    }
+  });
+  var v = bosVeri();
+  v.daireler = ds; v.odemeler = od;
+  v.komur = [{ sezon: k.sezon, tonFiyati: k.ton, yuvarla: 0, sonOdeme: '', toplamTon: 0, daireler: km }];
+  v.ayarlar.aidat = ad0;
+  return v;
+}
+function metinSayfasi() {
+  sayfaAc({
+    baslik: function () { return 'Metinden yükle'; },
+    ciz: function () {
+      return '<p class="note">Size gönderilen kurulum metnini ya da yedek metnini kopyalayıp aşağıdaki kutuya yapıştırın.</p>' +
+        '<div class="field"><label for="m-metin">Metin</label><textarea id="m-metin" style="min-height:220px;font-size:13px" placeholder="Buraya yapıştırın"></textarea></div>' +
+        '<button type="button" class="btn block" data-act="metin-yukle">Yükle</button>';
+    }
+  });
+}
 W.onImport = function (text) {
   var o;
-  try { o = JSON.parse(text); } catch (e) { o = null; }
+  try { o = JSON.parse(String(text || '').trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '')); } catch (e) { o = null; }
+  if (o && o.kurulum) { try { o = kurulumAc(o); } catch (e) { o = null; } }
   if (!o || !Array.isArray(o.daireler)) { toast('Bu dosya bir Elif Apartmanı yedeği değil'); return; }
   onayla('Şu anki kayıtların yerine bu yedek yüklenecek: ' + o.daireler.length + ' daire, ' + (o.odemeler || []).length + ' ödeme. Şu anki kayıtlar silinir.',
     'Yedeği yükle', function () { DB = normalize(o); kaydet(); YIGIN = []; sayfaCiz(); ciz(); toast('Yedek yüklendi'); });
@@ -1631,6 +1684,8 @@ var EYLEM = {
   },
   'bildirim-izin': function () { if (BR && BR.requestNotifications) BR.requestNotifications(); },
   'yedek-al': yedekAl,
+  'metin-ac': function () { metinSayfasi(); },
+  'metin-yukle': function () { var t = $('#m-metin').value; if (!t.trim()) { toast('Önce metni yapıştırın'); return; } W.onImport(t); },
   'yedek-yukle': function () { if (BR && BR.importData) BR.importData(); else toast('Yedek yükleme sadece telefonda çalışır'); },
   'csv': csvAktar,
   'artis-ac': function (el) { artisSayfasi(el.dataset.id); },
@@ -1703,5 +1758,5 @@ function baslat() {
 
 if (typeof document !== 'undefined' && document.getElementById('main')) baslat();
 if (typeof module !== 'undefined') {
-  module.exports = { setDB: function (d) { DB = normalize(d); }, kiraDurum: kiraDurum, kiraBorclari: kiraBorclari, hatirlatmaListesi: hatirlatmaListesi, komurDurum: komurDurum, ayEkle: ayEkle, sezonu: sezonu, sayi: sayi, vadeGunu: vadeGunu };
+  module.exports = { kurulumAc: kurulumAc, setDB: function (d) { DB = normalize(d); }, kiraDurum: kiraDurum, kiraBorclari: kiraBorclari, hatirlatmaListesi: hatirlatmaListesi, komurDurum: komurDurum, ayEkle: ayEkle, sezonu: sezonu, sayi: sayi, vadeGunu: vadeGunu };
 }
