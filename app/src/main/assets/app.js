@@ -319,7 +319,8 @@ function hatirlatmaListesi() {
       if (A.gecikme) gecikmeGunleri(sez.sonOdeme).forEach(function (t) { ekle(t, 'komur-gec', 0, d, sez.sezon + ' kömürü, ' + TL(k.kalan)); });
     });
     if (depozitoDurumu(d) === 'alinmadi') {
-      for (var t2 = gun0; t2 <= son; t2 = gunEkle(t2, 1)) if (toDate(t2).getDay() === 1) ekle(t2, 'depozito', 0, d, +d.kira ? TL(d.kira) : 'tutar girilmemiş');
+      /* 10 günde bir (her gün yeniden hesaplanınca kaymasın diye takvime sabit günler) */
+      for (var t2 = gun0; t2 <= son; t2 = gunEkle(t2, 1)) if (Math.floor(toDate(t2).getTime() / 86400000) % 10 === 0) ekle(t2, 'depozito', 0, d, +d.kira ? TL(d.kira) : 'tutar girilmemiş');
     }
     var art = sonrakiArtis(d);
     if (art && !artisYapildiMi(d, art)) [30, 7, 0].forEach(function (g) { ekle(gunEkle(art, -g), 'artis', g, d, TL(d.kira) + ' → artış ' + tarihAdi(art)); });
