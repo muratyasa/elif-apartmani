@@ -427,6 +427,14 @@ function chip(kod) { return '<span class="chip ' + kod + '">' + (CHIP_IK[kod] ? 
 var S = { tab: 'ozet', ay: buAy(), sezon: sezonu(bugun()), filtre: 'hepsi', arama: '', gTur: 'hepsi', gDaire: '', guncelleme: null, elleKontrol: false };
 
 /* ---------- Ana görünüm ---------- */
+/* Üst bantta canlı tarih ve saat */
+function saatGoster() {
+  var el = document.getElementById('top-sub'); if (!el) return;
+  var n = new Date(), gun = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][n.getDay()];
+  var ay = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][n.getMonth()];
+  el.innerHTML = '<span>' + n.getDate() + ' ' + ay + ' ' + n.getFullYear() + ', ' + gun + '</span><b>' + pad(n.getHours()) + ':' + pad(n.getMinutes()) + '</b>';
+}
+if (typeof setInterval === 'function' && typeof document !== 'undefined') setInterval(saatGoster, 15000);
 function ciz() {
   var tabs = document.querySelectorAll('#tabs button');
   for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle('on', tabs[i].dataset.tab === S.tab);
@@ -435,10 +443,7 @@ function ciz() {
   else if (S.tab === 'komur') { nav.hidden = false; $('#donem-label').textContent = S.sezon; }
   else nav.hidden = true;
   if (!DB.daireler.length && S.tab !== 'ayarlar') nav.hidden = true;
-  $('#top-sub').textContent = {
-    ozet: 'Kira ve kömür takibi', daireler: DB.daireler.length + ' daire', komur: 'Kömür sezonu',
-    gecmis: 'Girilen ödemeler', ayarlar: 'Bildirim, yedek, sürüm'
-  }[S.tab];
+  saatGoster();
   var html;
   if (!DB.daireler.length && S.tab !== 'ayarlar') html = vKurulum();
   else html = { ozet: vOzet, daireler: vDaireler, komur: vKomur, gecmis: vGecmis, ayarlar: vAyarlar }[S.tab]();
@@ -504,13 +509,15 @@ function vOzet() {
     '<p class="note warn">' + eksikler.join(', ') + ' girilmemiş.</p></section>' : '') +
     (artislar.length ? '<section class="card">' + baslik('artis', 'Kira artışı yaklaşanlar') + '<div class="list">' + artislar.map(function (x) {
       return satirSar(x.d, '<button type="button" class="row" data-act="artis-ac" data-id="' + x.d.id + '"><span class="no">' + esc(x.d.no) + '</span>' +
-        '<span class="row-main"><span class="row-title">' + esc(x.d.kiraci || 'Kiracı') + '</span><span class="row-sub">' + esc(tarihAdi(x.t)) + ' · ' +
-        (x.g < 0 ? '<span style="color:var(--bad)">' + kalanGunMetni(x.g) + '</span>' : kalanGunMetni(x.g)) + ' · şu an ' + TL(x.d.kira) + '</span></span></button>');
+        '<span class="row-main"><span class="row-title">' + esc(x.d.kiraci || 'Kiracı') + '</span><span class="row-sub">' + esc(tarihAdi(x.t, false)) + ' · ' +
+        (x.g < 0 ? '<span style="color:var(--bad)">' + kalanGunMetni(x.g) + '</span>' : kalanGunMetni(x.g)) + '</span></span>' +
+        '<span class="row-end"><span class="amt">' + TL(x.d.kira) + '</span><span class="row-sub">şu anki kira</span></span></button>');
     }).join('') + '</div></section>' : '') +
     (depYok.length || depBilinmez ? '<section class="card">' + baslik('kilit', 'Depozito') +
       (depYok.length ? '<p class="note warn">' + depYok.length + ' dairenin depozitosu alınmadı.</p><div class="list">' + depYok.map(function (d) {
         return satirSar(d, '<button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '"><span class="no">' + esc(d.no) + '</span>' +
-          '<span class="row-main"><span class="row-title">' + esc(d.kiraci || 'Kiracı') + '</span><span class="row-sub">' + (+d.kira ? 'Beklenen: ' + TL(d.kira) + ' (1 kira)' : 'Depozito bekleniyor') + '</span></span></button>');
+          '<span class="row-main"><span class="row-title">' + esc(d.kiraci || 'Kiracı') + '</span><span class="row-sub">' + (d.girisTarihi ? 'Giriş ' + esc(tarihAdi(d.girisTarihi)) : 'Depozito bekleniyor') + '</span></span>' +
+          (+d.kira ? '<span class="row-end"><span class="amt">' + TL(d.kira) + '</span></span>' : '') + '</button>');
       }).join('') + '</div>' : '') +
       (depBilinmez ? '<p class="note">' + depBilinmez + ' dairenin depozito durumu girilmemiş.</p>' : '') + '</section>' : '') +
     
@@ -630,7 +637,6 @@ function vDaireler() {
     return '<button type="button" class="filter' + (S.filtre === x[0] ? ' on' : '') + '" data-act="filtre" data-v="' + x[0] + '">' + x[1] + ' <b>' + say[x[0]] + '</b></button>';
   }).join('') + '</div>' +
     '<input id="arama" type="search" placeholder="Daire no, kiracı, telefon veya abone no ara" value="' + esc(S.arama) + '" aria-label="Ara">' +
-    '<p class="note">Kirası tam ödenen dairede yeşil ✓ işaretine dokunun; ' + esc(ayAdi(S.ay)) + ' kirası bugünün tarihiyle kaydedilir.</p>' +
     '<section class="card"><div class="list" id="daire-listesi">' + daireListesiHtml() + '</div></section>' +
     '<div class="actions"><button type="button" class="btn ghost" data-act="abonelikler">Abonelikler (elektrik, su)</button>' +
     '<button type="button" class="btn ghost" data-act="daire-yeni">+ Daire ekle</button></div>';
@@ -662,7 +668,7 @@ function vKomur() {
     '<button type="button" class="btn ghost block" data-act="komur-hesap">Kömür hesaplama aracı</button></section>';
 
   h += '<section class="card"><div class="card-head">' + baslik('bina', 'Daireler') + '</div>' +
-    '<p class="note">Daireye dokunarak kilo girin veya değiştirin. Ödeme almak için yanındaki yeşil düğmeye basın.</p><div class="list">';
+    '<div class="list">';
   daireler().forEach(function (d) {
     var k = komurDurum(d, sez), alt;
     if (!k) alt = '<span class="row-sub">' + (d.petek ? 'Kömür yazılmamış' : 'Petek sayısı girilmemiş') + '</span>';
@@ -822,19 +828,27 @@ function komurKgKaydet(id) {
   kaydet(); sayfaKapat(); yenile(); toast('Kaydedildi');
 }
 
+var TUR_STIL = { kira: ['para', 'mavi'], aidat: ['bina', 'yesil'], komur: ['alev', 'turuncu'], diger: ['fis', 'gri'] };
+function odemeNotu(o) { return o.not && !/^İlk yükleme/.test(o.not) ? o.not : ''; }
 function odemeSatiri(o, daireGoster) {
-  var d = daireBul(o.daireId), donem = '';
+  var d = daireBul(o.daireId), donem = '', st = TUR_STIL[o.tur] || TUR_STIL.diger;
   if ((o.tur === 'kira' || o.tur === 'aidat') && o.donem) donem = ayAdi(o.donem);
-  else if (o.tur === 'komur') donem = /^\d{4}-\d{4}$/.test(o.donem || '') ? o.donem + ' sezonu' : 'Kömür';
-  else donem = o.aciklama || 'Diğer';
-  var baslik = daireGoster ? (d ? (d.kiraci || (d.bos ? bosAdi(d) : daireAdi(d))) : 'Silinmiş daire') : TUR[o.tur] + ' · ' + donem;
-  var alt = daireGoster ? TUR[o.tur] + ' · ' + donem : tarihAdi(o.tarih);
-  var meta = [o.sekil, o.kim && typeof kisaKim === 'function' ? kisaKim(o.kim) : ''].filter(Boolean).join(' · ');
-  return '<button type="button" class="row" data-act="odeme-duzenle" data-id="' + o.id + '">' +
-    (daireGoster ? '<span class="no">' + esc(d ? d.no : '?') + '</span>' : '') +
-    '<span class="row-main"><span class="row-title">' + esc(baslik) + '</span>' +
-    '<span class="row-sub">' + esc(alt) + '</span>' +
-    (meta || o.not ? '<span class="row-meta">' + esc([meta, o.not].filter(Boolean).join(' · ')) + '</span>' : '') + '</span>' +
+  else if (o.tur === 'komur') donem = /^\d{4}-\d{4}$/.test(o.donem || '') ? o.donem : '';
+  else donem = o.aciklama || '';
+  var turMetin = (TUR[o.tur] || 'Diğer') + (donem ? ' · ' + donem : '');
+  var meta = [daireGoster ? '' : tarihAdi(o.tarih), o.sekil, o.kim && typeof kisaKim === 'function' ? kisaKim(o.kim) : '', odemeNotu(o)].filter(Boolean).join(' · ');
+  var sol, baslikM, alt;
+  if (daireGoster) {
+    sol = '<span class="no">' + esc(d ? d.no : '?') + '</span>';
+    baslikM = d ? (d.kiraci || (d.bos ? bosAdi(d) : daireAdi(d))) : 'Silinmiş daire';
+    alt = '<span class="od-tur od-' + st[1] + '">' + ikon(st[0]) + esc(turMetin) + '</span>';
+  } else {
+    sol = '<span class="od-ik od-' + st[1] + '">' + ikon(st[0]) + '</span>';
+    baslikM = turMetin; alt = '';
+  }
+  return '<button type="button" class="row od-row" data-act="odeme-duzenle" data-id="' + o.id + '">' + sol +
+    '<span class="row-main"><span class="row-title">' + esc(baslikM) + '</span>' + alt +
+    (meta ? '<span class="row-meta">' + esc(meta) + '</span>' : '') + '</span>' +
     '<span class="row-end"><span class="amt">' + TL(o.tutar) + '</span></span></button>';
 }
 function vGecmis() {
@@ -844,30 +858,29 @@ function vGecmis() {
     return true;
   }).sort(function (a, b) { return (b.tarih + b.kayit) < (a.tarih + a.kayit) ? -1 : 1; });
   var toplam = l.reduce(function (t, o) { return t + (+o.tutar || 0); }, 0);
-  var h = '<div class="grid2">' +
-    '<div class="field"><label for="g-tur">Tür</label><select id="g-tur" data-change="g-tur">' +
-    [['hepsi', 'Hepsi'], ['kira', 'Kira'], ['aidat', 'Aidat'], ['komur', 'Kömür'], ['diger', 'Diğer']].map(function (x) {
-      return '<option value="' + x[0] + '"' + (S.gTur === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
-    }).join('') + '</select></div>' +
-    '<div class="field"><label for="g-daire">Daire</label><select id="g-daire" data-change="g-daire"><option value="">Hepsi</option>' +
+  var h = '<section class="card gc-ozet">' +
+    '<div class="gc-toplam"><span><b>' + TL(toplam) + '</b><small>' + l.length + ' ödeme</small></span>' +
+    '<span class="gc-linkler"><button type="button" class="link" data-act="rapor">' + ikon('grafik', 'ct-ik') + 'Rapor</button>' +
+    '<button type="button" class="link" data-act="silinenler">' + ikon('saat', 'ct-ik') + 'Silinenler' + (DB.silinenler.length ? ' (' + DB.silinenler.length + ')' : '') + '</button></span></div>' +
+    '<div class="filters">' + [['hepsi', 'Hepsi'], ['kira', 'Kira'], ['aidat', 'Aidat'], ['komur', 'Kömür'], ['diger', 'Diğer']].map(function (x) {
+      return '<button type="button" class="filter' + (S.gTur === x[0] ? ' on' : '') + '" data-act="g-tur-sec" data-v="' + x[0] + '">' + x[1] + '</button>';
+    }).join('') + '</div>' +
+    '<select id="g-daire" data-change="g-daire" aria-label="Daire seç"><option value="">Bütün daireler</option>' +
     daireler().map(function (d) {
       return '<option value="' + d.id + '"' + (S.gDaire === d.id ? ' selected' : '') + '>Daire ' + esc(d.no) + (d.kiraci ? ' · ' + esc(d.kiraci) : '') + '</option>';
-    }).join('') + '</select></div></div>';
-  h += '<div class="actions"><button type="button" class="btn ghost" data-act="rapor">Gelir raporu</button>' +
-    '<button type="button" class="btn ghost" data-act="silinenler">Silinen ödemeler' + (DB.silinenler.length ? ' (' + DB.silinenler.length + ')' : '') + '</button></div>';
-  h += '<section class="card"><div class="card-head">' + baslik('fis', l.length + ' ödeme') + '<span class="amt">' + TL(toplam) + '</span></div>';
-  if (!l.length) h += '<p class="empty">Henüz ödeme girilmemiş. Sağ alttaki “Ödeme Gir” ile ilk ödemeyi ekleyebilirsiniz.</p>';
-  else {
-    h += '<div class="list">';
-    var son = '';
-    l.slice(0, 400).forEach(function (o) {
-      if (o.tarih !== son) { h += '<div class="date-head">' + esc(tarihAdi(o.tarih)) + '</div>'; son = o.tarih; }
-      h += odemeSatiri(o, true);
-    });
-    h += '</div>';
-    if (l.length > 400) h += '<p class="note">Son 400 ödeme gösteriliyor. Daha eskileri için daire veya tür seçin.</p>';
-  }
-  return h + '</section>';
+    }).join('') + '</select></section>';
+  if (!l.length) return h + '<p class="empty">Bu seçime uyan ödeme yok.</p>';
+  var gunler = [], gun = null;
+  l.slice(0, 400).forEach(function (o) {
+    if (!gun || gun.t !== o.tarih) { gun = { t: o.tarih, l: [], top: 0 }; gunler.push(gun); }
+    gun.l.push(o); gun.top += +o.tutar || 0;
+  });
+  gunler.forEach(function (g) {
+    h += '<div class="bk-gun gc-gun"><span>' + esc(gunBasligi(g.t)) + '</span><span>' + TL(g.top) + '</span></div>' +
+      '<section class="card gc-kart"><div class="list">' + g.l.map(function (o) { return odemeSatiri(o, true); }).join('') + '</div></section>';
+  });
+  if (l.length > 400) h += '<p class="note">Son 400 ödeme gösteriliyor. Eskiler için daire seçin.</p>';
+  return h;
 }
 
 function vAyarlar() {
@@ -906,10 +919,6 @@ function vAyarlar() {
   for (var s = 7; s <= 21; s++) h += '<option value="' + s + '"' + (+A.saat === s ? ' selected' : '') + '>' + pad(s) + ':00</option>';
   h += '</select></div>' +
     '<button type="button" class="btn ghost block" data-act="bildirim-dene">Deneme bildirimi gönder</button>';
-  var yak = hatirlatmaListesi().slice(0, 3);
-  if (yak.length) {
-    h += '<p class="note">Sıradaki bildirimler: ' + yak.map(function (x) { return esc(tarihAdi(x.tarih, false)) + ' – ' + esc(x.baslik); }).join('; ') + '</p>';
-  }
   h += '</section>';
 
   var oto = {};
@@ -922,7 +931,7 @@ function vAyarlar() {
     AYLAR.map(function (n, i) { return '<option value="' + (i + 1) + '"' + (+AD.kisBas === i + 1 ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
     '<div class="field"><label for="ad-bit">Kış aidatı son ay</label><select id="ad-bit">' +
     AYLAR.map(function (n, i) { return '<option value="' + (i + 1) + '"' + (+AD.kisBit === i + 1 ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div></div>' +
-    '<p class="note">Aidat her ay kirayla aynı gün beklenir. Bir dairenin aidatı farklıysa o dairenin Düzenle ekranından ayrıca girilebilir.</p>' +
+    '<p class="note">Farklı aidatı olan daire, kendi Düzenle ekranından ayarlanır.</p>' +
     '<button type="button" class="btn ghost block" data-act="aidat-kaydet">Aidatı kaydet</button></section>';
 
   h += '<section class="card">' + baslik('kaydet', 'Otomatik yedek') + '' +
@@ -935,12 +944,10 @@ function vAyarlar() {
       : '<p class="note warn">Otomatik yedek klasörü seçilmedi.</p>' +
         '<p class="note">Bir kez klasör seçin, uygulama her gün oraya kendiliğinden yedek alsın. Öneri: telefonda “Belgeler” içinde “Elif Apartmanı Yedek” adında bir klasör oluşturup onu seçin.</p>' +
         '<button type="button" class="btn block" data-act="oto-klasor">Yedek klasörü seç</button>') +
-    '<p class="note">Telefon kaybolursa diye: telefonun <b>Ayarlar → Google → Yedekleme</b> bölümünde yedekleme açıksa uygulamanın kayıtları Google hesabına da yedeklenir.</p>' +
     '</section>';
 
   h += '<section class="card">' + baslik('bulut', 'Google Drive yedeği') + '' +
-    '<p class="note">Telefon kaybolsa bile kayıtlar kaybolmasın diye haftada bir Drive\'a yedek alın.</p>' +
-    (DB.sonYedek ? '<p class="note">Son yedek: ' + esc(tarihAdi(DB.sonYedek)) + '</p>' : '<p class="note warn">Henüz Drive\'a yedek alınmadı.</p>') +
+        (DB.sonYedek ? '<p class="note">Son yedek: ' + esc(tarihAdi(DB.sonYedek)) + '</p>' : '<p class="note warn">Henüz Drive\'a yedek alınmadı.</p>') +
     '<button type="button" class="btn block" data-act="drive-yedekle">Google Drive\'a yedekle</button>' +
     '<button type="button" class="btn ghost block" data-act="drive-yukle">Google Drive\'dan geri yükle</button>' +
     '<details class="note"><summary>Nasıl?</summary>' +
@@ -993,7 +1000,7 @@ function abonelikSayfasi() {
     baslik: function () { return 'Abonelikler'; },
     ciz: function () {
       var l = daireler(), eksik = 0;
-      var h = '<p class="note">Numaranın yanındaki düğmeye dokunarak ya da numaraya basılı tutarak kopyalayabilirsiniz.</p>' +
+      var h = '' +
         '<section class="card"><div class="list">';
       l.forEach(function (d) {
         if (!d.elkAbone && !d.elkTesisat) eksik++;
@@ -1098,7 +1105,7 @@ function daireSayfasi(id) {
         '</div></section>';
 
       h += '<section class="card">' + baslik('kisi', 'Kiracı') + '<dl class="kv">' +
-        '<dt>Ad soyad</dt>' + (d.bos ? '<dd>' + esc(bosAdi(d)) + '</dd>' : (d.kiraci ? '<dd>' + esc(d.kiraci) + '</dd>' : bos())) +
+        (d.bos || d.kiraci ? '' : '<dt>Ad soyad</dt>' + bos()) +
         '<dt>Telefon</dt>' + (d.telefon && !d.bos ? '<dd><span class="kopya" data-kopya="' + esc(d.telefon) + '" data-ad="Telefon">' + esc(d.telefon) + '</span></dd>' : bos(d.bos ? '–' : '')) +
         '<dt>Giriş tarihi</dt>' + (d.bos ? bos('–') : '<dd>' + esc(d.girisTarihi ? tarihAdi(d.girisTarihi) : ayAdi(baslangicAyi(d))) + '</dd>') +
         '<dt>Depozito</dt>' + (d.bos ? bos('–') : depozitoDurumu(d) === 'alinmadi' ? '<dd class="missing bad">Alınmadı</dd>'
@@ -1150,8 +1157,7 @@ function daireSayfasi(id) {
           (k.kod === 'yok' ? ' disabled' : '') + ' aria-label="' + esc(ayAdi(ym) + ': ' + DURUM[k.kod]) + '">' +
           '<b>' + AYK[+ym.slice(5) - 1] + '</b>' + esc(alt) + '</button>';
       }
-      h += '<section class="card">' + baslik('takvim', 'Son 12 ay kira') + '<div class="months">' + hucreler + '</div>' +
-        '<p class="note">Ödenmemiş bir aya dokunarak o ayın ödemesini girebilirsiniz.</p></section>';
+      h += '<section class="card">' + baslik('takvim', 'Son 12 ay kira') + '<div class="months">' + hucreler + '</div></section>';
 
       var od = DB.odemeler.filter(function (o) { return o.daireId === d.id; })
         .sort(function (a, b) { return (b.tarih + b.kayit) < (a.tarih + a.kayit) ? -1 : 1; });
@@ -1925,6 +1931,7 @@ var EYLEM = {
 };
 var DEGISIM = {
   'g-tur': function (el) { S.gTur = el.value; ciz(); },
+  'g-tur-sec': function (el) { S.gTur = el.dataset.v; ciz(); },
   'g-daire': function (el) { S.gDaire = el.value; ciz(); },
   'a-gecikme': function (el) { var v = +el.value; DB.ayarlar.gecikme = v > 0; if (v) DB.ayarlar.gecikmeSiklik = v; kaydet(); ciz(); },
   'a-saat': function (el) { DB.ayarlar.saat = +el.value; kaydet(); toast('Bildirimler her gün ' + pad(el.value) + ':00 civarında gelir'); }

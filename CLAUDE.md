@@ -31,5 +31,8 @@ Kiracı verisi bu depoda YOKTUR ve konmamalıdır (depo herkese açık). Veri ge
 - Kopyalanacak her şey (bağlantı, metin, numara) mesajda kod bloğu içinde verilir.
 - Elektrik abone no zorunlu değil; telefonun yanında kopyalama düğmesi yok; toplu onay yok.
 - Daire listesinde arama/WhatsApp düğmesi yok (daire sayfasında var); kira ve aidat ayrı satırlarda, petek sağda.
+- Uygulama "gardırop gibi" düzenli olmalı: gereksiz açıklama/tekrar yok, bilgiler hizalı, aranan kolay bulunur.
+- Bildirim ve geçmiş: gün başlıklarıyla gruplu; her tür kendi rengi/ikonu. "İlk yükleme" notları gösterilmez (`odemeNotu`).
+- Üst bant: logo + ad + canlı tarih-saat (`saatGoster`), dönem seçici ikinci satırda.
 - Tasarım sade, ikonlar tutarlı ve az; her kart başlığı `baslik(ikon, metin)` ile.
 - İşlemi yapan kişi e-posta değil adla görünür: `senk.js` → `KISI_ADLARI` (e-postanın `epostaIzi` parmak izi → ad). Depo açık olduğu için e-posta yazılmaz. Umut (kullanıcı), Murat (babası), Ömer (kardeşi). Yeni kişi eklenince izi hesaplanıp eklenir.
