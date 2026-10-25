@@ -1964,6 +1964,7 @@ W.onBackupFolder = function () {
   if (S.tab === 'ayarlar' && !YIGIN.length) ciz();
 };
 W.onBack = function () {
+  if (typeof TUR !== 'undefined' && TUR) { turBitir(); return true; }
   if (YIGIN.length) { sayfaKapat(); yenile(); return true; }
   if (S.tab !== 'ozet') { S.tab = 'ozet'; ciz(); return true; }
   return false;
@@ -2745,6 +2746,7 @@ var REHBER = [
     ['Kayıtların altında kimin adı yazıyor?', 'İşlemi yapan kişinin adı: Umut, Murat ya da Ömer.', '']
   ] },
   { k: 'Görünüm ve telefon', ik: 'kalem', l: [
+    ['Adım adım öğretici var mı?', 'Evet. Üst banttaki kep simgesine dokunun; bir konu seçince ekranda ilgili düğme sarı çerçeveyle gösterilir ve adım adım anlatılır. Hiçbir kayıt değişmez.', 'ogretici'],
     ['Yazıları nasıl büyütürüm?', 'Ayarlar → Görünüm → Normal / Büyük / Çok büyük. Yalnız o telefonu etkiler.', 'sekme:ayarlar'],
     ['Petek yazısını nasıl gizlerim?', 'Ayarlar → Görünüm → “Petek simgesinin altında ‘petek’ yazsın” kutusunun işaretini kaldırın.', 'sekme:ayarlar'],
     ['Ana ekrana kutucuk nasıl eklenir?', 'Telefonun ana ekranında boş bir yere basılı tutun → Widget’lar → Elif Apartmanı’nı sürükleyin. Kutucuk uygulama her açıldığında yenilenir.', ''],
@@ -2813,6 +2815,123 @@ Object.assign(EYLEM, {
     if (v === 'giderler' || v === 'rapor' || v === 'silinenler') { S.tab = 'gecmis'; ciz(); }
     if (v === 'komur-ayar') { S.tab = 'komur'; ciz(); }
     if (EYLEM[v]) EYLEM[v]({ dataset: {} });
+  }
+});
+
+/* ---------- Öğretici: ekranı karartıp ilgili düğmeyi gösteren adım adım turlar ---------- */
+var TURLAR = [
+  { ad: 'Uygulamayı tanıyın', ik: 'bina', renk: 'mavi', adim: [
+    { sekme: 'ozet', h: '#tabs', b: 'Alt menü', m: 'Özet, Daireler, Kömür, Geçmiş ve Ayarlar sayfaları arasında buradan geçersiniz.' },
+    { sekme: 'ozet', h: '#periodnav', b: 'Ay seçimi', m: 'Ok tuşlarıyla önceki ya da sonraki aya geçin. Daireler listesi seçtiğiniz ayın ödemelerini gösterir.' },
+    { sekme: 'ozet', h: '#main .card', b: 'Özet kartları', m: 'Eksik bilgiler, yaklaşan kira artışları, depozitolar ve bu ayın toplamı burada toplanır. Karta dokunarak ayrıntıya geçebilirsiniz.' },
+    { sekme: 'ozet', h: '[data-act=bildirimler]', b: 'Bildirimler', m: 'Gelen ve yaklaşan bütün hatırlatmalar burada, gün gün listelenir.' },
+    { sekme: 'ozet', h: '.top [data-act=yardim]', b: 'Rehber', m: 'Bir şeyi nasıl yapacağınızı unutursanız buradan arayın; her cevapta “Göster” düğmesi vardır.' },
+    { sekme: 'ozet', h: '#fab', b: 'Ödeme gir', m: 'Her sayfada sağ altta durur. Kira, aidat, kömür ya da başka bir ödemeyi buradan girersiniz.' }
+  ] },
+  { ad: 'Ödeme nasıl girilir?', ik: 'para', renk: 'yesil', adim: [
+    { sekme: 'daireler', h: '#daire-listesi .sag-sut .paid-btn', b: 'Tek dokunuşla ödendi', m: 'Kirasını tam ödeyen dairenin yanındaki yeşil ✓ işaretine dokunun. O ayın kirası ve aidatı bugünün tarihiyle kaydedilir.', yoksa: 'Bu ay ödeme bekleyen daire yok. Bekleyen dairelerde sağda yeşil ✓ işareti çıkar; dokununca kira ve aidat ödendi olur.' },
+    { sekme: 'daireler', h: '#toast', b: 'Geri al ve kiracıya bildir', m: 'Kaydettikten sonra altta bir şerit çıkar: “Geri al” ile 6 saniye içinde vazgeçebilir, “Bildir” ile kiracıya WhatsApp’tan “ödemeniz alındı” mesajı gönderebilirsiniz.', ornekToast: true },
+    { sekme: 'daireler', h: '#fab', b: 'Farklı tutar ya da tarih', m: 'Eksik ödeme, başka bir tarih ya da kömür ödemesi için “+ Ödeme Gir”e dokunun; daireyi, türü ve tutarı seçip kaydedin.' }
+  ] },
+  { ad: 'Yanlış ödeme nasıl düzeltilir?', ik: 'saat', renk: 'turuncu', adim: [
+    { sekme: 'gecmis', h: '#main .od-row', b: 'Ödemeyi bulun', m: 'Geçmiş sayfasında bütün ödemeler gün gün listelenir. Yanlış olana dokunun; açılan ekranda tutarı düzeltin ya da “Ödemeyi sil” deyin.' },
+    { sekme: 'gecmis', h: '#main .daire-secici', b: 'Daireye göre süzün', m: 'Aradığınız ödemeyi hızlı bulmak için daireyi buradan seçin.' },
+    { sekme: 'gecmis', h: '#main [data-act=silinenler]', b: 'Silineni geri getirin', m: 'Sildiğiniz ödemeler 30 gün burada durur; “Geri getir” ile eski haline döner.' }
+  ] },
+  { ad: 'Daireler ve kiracılar', ik: 'kisi', renk: 'mavi', adim: [
+    { sekme: 'daireler', h: '#main .filters', b: 'Süzgeçler', m: 'Hepsi, ödemeyenler, ödeyenler ya da boş daireleri tek dokunuşla ayırın.' },
+    { sekme: 'daireler', h: '#arama', b: 'Arama', m: 'Daire no, kiracı adı, telefon ya da abone numarasıyla arayın.' },
+    { sekme: 'daireler', h: '#daire-listesi .row-wrap', b: 'Daire satırı', m: 'Kira ve aidat ayrı satırlarda, durumlarıyla görünür. Sağdaki turuncu rozet petek sayısıdır. Satıra dokununca daire sayfası açılır: arama, WhatsApp, düzenleme, kira artışı ve hesap dökümü oradadır.' }
+  ] },
+  { ad: 'Kömür takibi', ik: 'alev', renk: 'turuncu', adim: [
+    { sekme: 'komur', h: '#main .card', b: 'Sezon özeti', m: 'Ton fiyatı, toplanan ve kalan kömür parası burada. Kömürcüye ödediğinizi gider olarak girerseniz kasa farkı da görünür.' },
+    { sekme: 'komur', h: '#main [data-act=komur-ayar]', b: 'Fiyatı düzenle', m: 'Ton fiyatı değişirse buradan güncelleyin; bütün dairelerin kömür borcu yeniden hesaplanır.' },
+    { sekme: 'komur', h: '#main .sag-sut', b: 'Daire işaretleri', m: 'Yeşil ✓ tamamı ödendi, sarı ₺ bir kısmı ödendi, çerçeveli ₺ hiç ödenmedi, kırmızı ev ev sahibi payı. ₺ işaretine dokunarak kömür ödemesi girersiniz.' }
+  ] },
+  { ad: 'Gider ve rapor', ik: 'grafik', renk: 'mor', adim: [
+    { sekme: 'gecmis', h: '#main [data-act=giderler]', b: 'Giderler', m: 'Kömür alımı, tamir, ortak elektrik gibi harcamaları buraya girin.' },
+    { sekme: 'gecmis', h: '#main [data-act=rapor]', b: 'Rapor ve grafik', m: 'Aylık kira grafiği, gelir – gider – net kazanç ve daire daire gelir burada. Tek bir dairenin grafiğini de seçebilirsiniz.' }
+  ] },
+  { ad: 'Bildirimler ve ayarlar', ik: 'zil', renk: 'mavi', adim: [
+    { sekme: 'ayarlar', h: '#a-saat', b: 'Bildirim saati', m: 'Hatırlatmaların hangi saatte geleceğini buradan seçin.' },
+    { sekme: 'ayarlar', h: '[data-act=yazi-boyu]', b: 'Yazı boyutu', m: 'Yazılar küçük geliyorsa Büyük ya da Çok büyük seçin. Yalnızca bu telefonu etkiler.', ust: true },
+    { sekme: 'ayarlar', h: '[data-act=bildirim-dene]', b: 'Deneme bildirimi', m: 'Bildirimlerin çalıştığını görmek için dokunun.' }
+  ] }
+];
+var TUR = null;
+function ogreticiSayfasi() {
+  sayfaAc({
+    baslik: function () { return 'Öğretici'; },
+    ciz: function () {
+      return '<p class="note">Bir konu seçin; ekranda ilgili düğme gösterilir ve adım adım anlatılır. Hiçbir kayıt değişmez.</p>' +
+        '<section class="card"><div class="list">' + TURLAR.map(function (t, i) {
+          return '<button type="button" class="row tur-sec" data-act="tur-basla" data-v="' + i + '"><span class="od-ik od-' + t.renk + '">' + ikon(t.ik) + '</span>' +
+            '<span class="row-main"><span class="row-title">' + esc(t.ad) + '</span><span class="row-sub">' + t.adim.length + ' adım</span></span><span class="bk-ok">›</span></button>';
+        }).join('') + '</div></section>';
+    }
+  });
+}
+function turGoster() {
+  var t = TUR, a = t.tur.adim[t.i], kok = document.documentElement;
+  if (S.tab !== a.sekme) { S.tab = a.sekme; ciz(); }
+  var perde = document.getElementById('tur-perde');
+  if (!perde) {
+    perde = document.createElement('div'); perde.id = 'tur-perde';
+    perde.innerHTML = '<div class="tur-isik" id="tur-isik"></div><div class="tur-balon" id="tur-balon"></div>';
+    kok.appendChild(perde);
+    perde.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-tur]'); if (!b) return;
+      var v = b.dataset.tur;
+      if (v === 'kapat') turBitir();
+      else if (v === 'ileri') { if (TUR.i < TUR.tur.adim.length - 1) { TUR.i++; turGoster(); } else turBitir(); }
+      else if (v === 'geri' && TUR.i > 0) { TUR.i--; turGoster(); }
+    });
+  }
+  if (a.ornekToast) toast('Daire 3 · Ekim 2026 ödendi', function () {}, { metin: 'Bildir', fn: function () {} });
+  else { var tt = document.getElementById('toast'); if (tt) tt.hidden = true; }
+  var el = null;
+  try { el = document.querySelector(a.h); } catch (e) { el = null; }
+  if (el && !el.getClientRects().length) el = null;
+  var isik = document.getElementById('tur-isik'), balon = document.getElementById('tur-balon');
+  var son = t.i === t.tur.adim.length - 1;
+  balon.style.fontSize = (16 * yaziBoyu()) + 'px';
+  balon.innerHTML = '<div class="tb-ust"><span class="tb-sayac">' + (t.i + 1) + ' / ' + t.tur.adim.length + '</span><button type="button" class="tb-kapat" data-tur="kapat" aria-label="Kapat">×</button></div>' +
+    '<b>' + esc(a.b) + '</b><p>' + esc(el || !a.yoksa ? a.m : a.yoksa) + '</p>' +
+    '<div class="tb-alt">' + (t.i ? '<button type="button" class="btn ghost small" data-tur="geri">‹ Geri</button>' : '<span></span>') +
+    '<button type="button" class="btn small" data-tur="ileri">' + (son ? 'Bitir ✓' : 'İleri ›') + '</button></div>';
+  function yerlestir() {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    if (!el) {
+      isik.style.cssText = 'left:50%;top:50%;width:0;height:0;';
+      balon.style.left = '16px'; balon.style.right = '16px'; balon.style.top = Math.max(16, vh / 2 - 90) + 'px'; balon.style.bottom = 'auto';
+      return;
+    }
+    var r = el.getBoundingClientRect(), p = 6;
+    isik.style.cssText = 'left:' + (r.left - p) + 'px;top:' + (r.top - p) + 'px;width:' + (r.width + 2 * p) + 'px;height:' + (r.height + 2 * p) + 'px;';
+    balon.style.left = '16px'; balon.style.right = '16px';
+    var bh = balon.offsetHeight || 180;
+    if (r.bottom + p + 14 + bh < vh) { balon.style.top = (r.bottom + p + 12) + 'px'; balon.style.bottom = 'auto'; }
+    else if (r.top - p - 14 - bh > 0) { balon.style.top = (r.top - p - 12 - bh) + 'px'; balon.style.bottom = 'auto'; }
+    else { balon.style.top = 'auto'; balon.style.bottom = '16px'; }
+  }
+  if (el && el.id !== 'toast' && el.id !== 'fab' && !el.closest('.top') && el.id !== 'tabs') {
+    el.scrollIntoView({ block: 'center' });
+  }
+  yerlestir();
+  setTimeout(yerlestir, 120);
+}
+function turBitir() {
+  TUR = null;
+  var p = document.getElementById('tur-perde'); if (p) p.remove();
+  var t = document.getElementById('toast'); if (t) t.hidden = true;
+  window.scrollTo(0, 0);
+}
+Object.assign(EYLEM, {
+  'ogretici': function () { ogreticiSayfasi(); },
+  'tur-basla': function (el) {
+    YIGIN = []; sayfaCiz();
+    TUR = { tur: TURLAR[+el.dataset.v], i: 0 };
+    setTimeout(turGoster, 60);
   }
 });
 
