@@ -22,6 +22,9 @@ Kiracı verisi bu depoda YOKTUR ve konmamalıdır (depo herkese açık). Veri ge
 - Kurallar e-posta izin listesiyle korunur; kayıt (sign-up) kapalı; App Check zorunlu DEĞİL (açılırsa eşitleme durur).
 
 ## Veri kuralları
+- Giderler (`DB.giderler`) ortak `genel` belgesinde eşitlenir (yeni Firestore koleksiyonu açmamak için); eski sürüm gidersiz yazarsa yereldekiler korunur.
+- Ay sonu özeti: her ayın 20'sinde `ayOzetiBildirimi` (tür `ozet`).
+- Tutar girişinde `sayi()` "2.400" gibi binlik noktayı tanır.
 - Kira ve aidat ayın 15'inde; aylık borç = kira + aidat. Aidat yaz 300, kış 1300 (Ekim–Nisan).
 - Kömür: petek başı 600 kg × ton fiyatı; boş ve kiraya verilmeyen daireler "Ev sahibi payı".
 - Depozito toplam borca sayılmaz. Kira artışları `kiraArtislari` geçmişiyle tutulur (eski aylar eski tutarda).

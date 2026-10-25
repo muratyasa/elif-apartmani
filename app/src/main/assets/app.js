@@ -21,6 +21,7 @@ function bosVeri() {
     komur: [],
     notlar: [],
     silinenler: [],
+    giderler: [],
     ayarlar: { hatirlatGun: [0], gecikme: true, gecikmeSiklik: 3, bildirimDuzeni: 2, saat: 10, bildirimGoruldu: '', aidat: { yaz: 300, kis: 1300, kisBas: 10, kisBit: 4 } },
     sonYedek: ''
   };
@@ -48,6 +49,7 @@ function normalize(o) {
   if (!Array.isArray(d.komur)) d.komur = [];
   if (!Array.isArray(d.notlar)) d.notlar = [];
   if (!Array.isArray(d.silinenler)) d.silinenler = [];
+  if (!Array.isArray(d.giderler)) d.giderler = [];
   /* Düzeltme (24.10.2026): Daire 17 girişi 15.07.2023 */
   (d.daireler || []).forEach(function (x) {
     if (x.no === '17' && x.kiraci === 'Esma Görünüş' && x.girisTarihi === '2026-07-15') {
@@ -129,6 +131,7 @@ function sayi(v) {
   if (typeof v === 'number') return v;
   var s = String(v || '').trim().replace(/\s/g, '').replace(/₺/g, '');
   if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ''); /* 2.400 ve 16.000 binlik ayırıcıyla yazılır */
   var n = parseFloat(s);
   return isFinite(n) ? n : 0;
 }
@@ -338,6 +341,7 @@ function hatirlatmaListesi() {
     var art = sonrakiArtis(d);
     if (art && !artisYapildiMi(d, art)) [30, 7, 0].forEach(function (g) { ekle(gunEkle(art, -g), 'artis', g, d, TL(d.kira) + ' → artış ' + tarihAdi(art)); });
   });
+  var ozetler = ayOzetiBildirimi(gun0, son);
   return Object.keys(kovalar).sort().map(function (key) {
     var b = kovalar[key], n = b.ids.length, baslik, ust;
     var satirlar = b.satirlar.slice(0, 12);
@@ -365,7 +369,7 @@ function hatirlatmaListesi() {
       ust = 'Kira sözleşmesi bitenler:';
     }
     return { tarih: b.tarih, tur: b.tip, baslik: baslik, metin: ust + '\n' + satirlar.join('\n'), daireler: b.ids };
-  });
+  }).concat(ozetler).sort(function (a, b) { return a.tarih < b.tarih ? -1 : a.tarih > b.tarih ? 1 : 0; });
 }
 function hatirlatmalariGonder() {
   if (!BR || !BR.setReminders) return;
@@ -412,7 +416,10 @@ var IK = {
   bulut: 'M19.4 10A7.5 7.5 0 0 0 5.4 8 6 6 0 0 0 6 20h13a5 5 0 0 0 .4-10z',
   kaydet: 'M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z',
   kalem: 'M3 17.3V21h3.8L17.8 9.9 14 6.2 3 17.3zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8L19 8.8 20.7 7z',
-  ev: 'M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z'
+  ev: 'M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z',
+  simsek: 'M7 2v11h3v9l7-12h-4l4-8H7z',
+  damla: 'M12 2.7C8.5 7 6 10.4 6 14a6 6 0 0 0 12 0c0-3.6-2.5-7-6-11.3z',
+  cuzdan: 'M3 6a2 2 0 0 1 2-2h13v3H5v.5h16V20H5a2 2 0 0 1-2-2V6zm14 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'
 };
 function ikon(ad, sinif) {
   return '<svg class="' + (sinif || 'ik') + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + IK[ad] + '"/></svg>';
@@ -661,6 +668,7 @@ function vKomur() {
     '<dt>Toplam yazılan</dt><dd>' + kgMetni(kg) + '</dd>' +
     '<dt>Toplanan</dt><dd>' + TL(od) + ' / ' + TL(bek) + '</dd>' +
     '<dt>Kalan</dt><dd style="color:' + (bek - od > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + TL(Math.max(0, bek - od)) + '</dd>' +
+    komurKasaSatirlari(S.sezon, od) +
     (sez.sonOdeme ? '<dt>Son ödeme</dt><dd>' + esc(tarihAdi(sez.sonOdeme)) + '</dd>' : '') +
     '</dl>' + (borclu ? '<p class="note">' + borclu + ' dairenin kömür borcu var.</p>' : '') +
     '<button type="button" class="btn ghost block" data-act="komur-hesap">Kömür hesaplama aracı</button></section>';
@@ -865,8 +873,9 @@ function vGecmis() {
   var toplam = l.reduce(function (t, o) { return t + (+o.tutar || 0); }, 0);
   var h = '<section class="card gc-ozet">' +
     '<div class="gc-toplam"><span><b>' + TL(toplam) + '</b><small>' + l.length + ' ödeme</small></span>' +
+    '<button type="button" class="link gc-silinen" data-act="silinenler">Silinenler' + (DB.silinenler.length ? ' (' + DB.silinenler.length + ')' : '') + '</button>' +
     '</div><div class="gc-linkler"><button type="button" class="hap mavi" data-act="rapor">' + ikon('grafik') + 'Rapor ve grafik</button>' +
-    '<button type="button" class="hap gri" data-act="silinenler">' + ikon('saat') + 'Silinenler' + (DB.silinenler.length ? ' (' + DB.silinenler.length + ')' : '') + '</button></div>' +
+    '<button type="button" class="hap kirmizi" data-act="giderler">' + ikon('cuzdan') + 'Giderler</button></div>' +
     '<div class="filters">' + [['hepsi', 'Hepsi'], ['kira', 'Kira'], ['aidat', 'Aidat'], ['komur', 'Kömür'], ['diger', 'Diğer']].map(function (x) {
       return '<button type="button" class="filter' + (S.gTur === x[0] ? ' on' : '') + '" data-act="g-tur-sec" data-v="' + x[0] + '">' + x[1] + '</button>';
     }).join('') + '</div>' +
@@ -1137,7 +1146,8 @@ function daireSayfasi(id) {
       h += '<div class="actions">' +
         (!d.bos ? '<button type="button" class="btn ghost" data-act="kiraci-cikis" data-id="' + d.id + '">Kiracı çıktı</button>' : '') +
         (!d.bos ? '<button type="button" class="btn ghost" data-act="artis-ac" data-id="' + d.id + '">Kira artışı</button>' : '') +
-        '<button type="button" class="btn ghost" data-act="toplu-ac" data-id="' + d.id + '">Geçmişi toplu gir</button></div>' +
+        '<button type="button" class="btn ghost" data-act="toplu-ac" data-id="' + d.id + '">Geçmişi toplu gir</button>' +
+        (!d.bos ? '<button type="button" class="btn ghost" data-act="dokum" data-id="' + d.id + '">Hesap dökümü</button>' : '') + '</div>' +
         ((d.kiraArtislari || []).length ? '<section class="card">' + baslik('artis', 'Kira artışları') + '<dl class="kv">' +
           d.kiraArtislari.slice().sort(function (a, b) { return a.ay < b.ay ? 1 : -1; }).map(function (a) {
             return '<dt>' + esc(ayAdi(a.ay)) + '</dt><dd>' + TL(a.eski) + ' → ' + TL(a.yeni) + '</dd>';
@@ -1426,11 +1436,12 @@ function bildirimRozeti() {
 }
 var BILDIRIM_TUR = {
   'kira': ['takvim', 'mavi'], 'kira-gec': ['uyari', 'kirmizi'], 'komur': ['alev', 'turuncu'], 'komur-gec': ['alev', 'bordo'],
-  'depozito': ['kilit', 'sari'], 'artis': ['artis', 'mor'], 'sozlesme': ['fis', 'yesil']
+  'depozito': ['kilit', 'sari'], 'artis': ['artis', 'mor'], 'sozlesme': ['fis', 'gri'], 'ozet': ['grafik', 'yesil']
 };
 function bildirimTuru(x) {
   if (x.tur && BILDIRIM_TUR[x.tur]) return x.tur;
   var t = (x.baslik || '').toLocaleLowerCase('tr');
+  if (t.indexOf('özeti') >= 0) return 'ozet';
   if (t.indexOf('ödenmemiş kömür') >= 0) return 'komur-gec';
   if (t.indexOf('ödenmemiş') >= 0) return 'kira-gec';
   if (t.indexOf('kömür') >= 0) return 'komur';
@@ -2061,6 +2072,7 @@ function raporSayfasi(yil) {
         (diger ? '<dt>Diğer</dt><dd>' + TL(diger) + '</dd>' : '') + '</dl>' +
         '</section>';
       if (secili) return h;
+      h += gelirGiderKarti(y, kira + aidat + komur + diger);
       var satirlar = daireler().filter(function (d) { return daire[d.id]; });
       h += '<section class="card">' + baslik('bina', 'Daire daire kira geliri');
       if (!satirlar.length) h += '<p class="empty">' + y + ' yılında kira ödemesi kaydı yok.</p>';
@@ -2269,6 +2281,200 @@ Object.assign(EYLEM, {
   },
   'silinenler': function () { silinenlerSayfasi(); },
   'geri-getir': function (el) { geriGetir(el.dataset.id); }
+});
+
+/* ---------- Gider defteri, hesap dökümü, ay sonu özeti ---------- */
+var GIDER_KAT = [
+  ['komur', 'Kömür alımı', 'alev', 'turuncu'], ['tamir', 'Tamir ve bakım', 'arac', 'gri'],
+  ['elektrik', 'Ortak elektrik', 'simsek', 'sari'], ['su', 'Ortak su', 'damla', 'mavi'],
+  ['temizlik', 'Temizlik / kapıcı', 'kisi', 'yesil'], ['vergi', 'Vergi ve harç', 'fis', 'mor'], ['diger', 'Diğer', 'cuzdan', 'gri']
+];
+function giderKat(k) { for (var i = 0; i < GIDER_KAT.length; i++) if (GIDER_KAT[i][0] === k) return GIDER_KAT[i]; return GIDER_KAT[GIDER_KAT.length - 1]; }
+function giderToplam(filtre) { return DB.giderler.filter(filtre).reduce(function (t, g) { return t + (+g.tutar || 0); }, 0); }
+
+/* Ay sonu özeti: her ayın 20'sinde tek bildirim */
+function ayOzetiBildirimi(gun0, son) {
+  var cur = buAy(), t = cur + '-20';
+  if (t < gun0 || t > son) return [];
+  var top = 0, odeyen = 0, bek = 0, od = 0, satir = [], ids = [];
+  daireler().forEach(function (d) {
+    var k = kiraDurum(d, cur);
+    if (k.kod === 'yok' || k.kod === 'tanimsiz') return;
+    top++; bek += k.beklenen; od += Math.min(k.odenen, k.beklenen);
+    if (k.kalan <= 0) odeyen++;
+    else { satir.push('Daire ' + d.no + (d.kiraci ? ' (' + d.kiraci + ')' : '') + ' – ' + TL(k.kalan)); ids.push(d.id); }
+  });
+  if (!top) return [];
+  return [{ tarih: t, tur: 'ozet', baslik: AYLAR[+cur.slice(5) - 1] + ' özeti · ' + odeyen + '/' + top + ' ödedi', daireler: ids,
+    metin: 'Toplanan ' + TL(od) + ' / ' + TL(bek) + (satir.length ? '. Ödemeyenler:' : '. Herkes ödedi.') + (satir.length ? '\n' + satir.slice(0, 12).join('\n') : '') }];
+}
+
+/* Kömür sayfası: kömürcüye ödenen ve kasa farkı */
+function komurKasaSatirlari(sezon, toplanan) {
+  var odenen = giderToplam(function (g) { return g.kat === 'komur' && g.tarih && sezonu(g.tarih) === sezon; });
+  if (!odenen) return '';
+  var fark = toplanan - odenen;
+  return '<dt>Kömürcüye ödenen</dt><dd>' + TL(odenen) + '</dd>' +
+    '<dt>Kasa</dt><dd style="color:' + (fark >= 0 ? 'var(--ok)' : 'var(--bad)') + '">' + (fark >= 0 ? '+' : '−') + TL(Math.abs(fark)) + '</dd>';
+}
+
+/* Rapor: gelir – gider – net */
+function gelirGiderKarti(y, gelir) {
+  var l = DB.giderler.filter(function (g) { return (g.tarih || '').slice(0, 4) === y; });
+  var gider = l.reduce(function (t, g) { return t + (+g.tutar || 0); }, 0), net = gelir - gider;
+  var kat = {};
+  l.forEach(function (g) { kat[g.kat] = (kat[g.kat] || 0) + (+g.tutar || 0); });
+  return '<section class="card"><div class="card-head">' + baslik('cuzdan', y + ' gelir – gider') +
+    '<button type="button" class="link" data-act="giderler">Giderler</button></div><dl class="kv">' +
+    '<dt>Toplam tahsilat</dt><dd>' + TL(gelir) + '</dd>' +
+    '<dt>Giderler</dt><dd style="color:var(--bad)">' + (gider ? '−' : '') + TL(gider) + '</dd>' +
+    '<dt><b>Net</b></dt><dd class="net' + (net < 0 ? ' bad' : '') + '">' + TL(net) + '</dd></dl>' +
+    (gider ? '<div class="gd-dagilim">' + GIDER_KAT.filter(function (k) { return kat[k[0]]; }).map(function (k) {
+      return '<div class="gd-dg"><span class="od-ik od-' + k[3] + '">' + ikon(k[2]) + '</span><span>' + k[1] + '</span><b>' + TL(kat[k[0]]) + '</b></div>';
+    }).join('') + '</div>' : '<p class="empty">' + y + ' için gider girilmemiş.</p>') + '</section>';
+}
+
+function giderSatiri(g) {
+  var k = giderKat(g.kat);
+  var meta = [g.kim && typeof kisaKim === 'function' ? kisaKim(g.kim) : ''].filter(Boolean).join(' · ');
+  return '<button type="button" class="row od-row" data-act="gider-duzenle" data-id="' + g.id + '">' +
+    '<span class="od-ik od-' + k[3] + '">' + ikon(k[2]) + '</span>' +
+    '<span class="row-main"><span class="row-title">' + esc(k[1]) + '</span>' +
+    (g.aciklama ? '<span class="row-sub">' + esc(g.aciklama) + '</span>' : '') +
+    (meta ? '<span class="row-meta">' + esc(meta) + '</span>' : '') + '</span>' +
+    '<span class="row-end"><span class="amt bad">−' + TL(g.tutar) + '</span></span></button>';
+}
+function giderlerSayfasi() {
+  sayfaAc({
+    baslik: function () { return 'Giderler'; },
+    ciz: function () {
+      var y = bugun().slice(0, 4), l = DB.giderler.slice().sort(function (a, b) { return (b.tarih + (b.kayit || '')) < (a.tarih + (a.kayit || '')) ? -1 : 1; });
+      var buYil = giderToplam(function (g) { return (g.tarih || '').slice(0, 4) === y; });
+      var h = '<section class="card gc-ozet"><div class="gc-toplam"><span><b class="bad">' + TL(buYil) + '</b><small>' + y + ' yılı giderleri</small></span></div>' +
+        '<button type="button" class="btn block" data-act="gider-yeni">+ Gider ekle</button></section>';
+      if (!l.length) return h + '<p class="empty">Henüz gider girilmemiş. Kömür alımı, tamir, ortak elektrik gibi harcamaları buraya ekleyin.</p>';
+      var gun = null;
+      l.forEach(function (g) {
+        if (!gun || gun.t !== g.tarih) {
+          if (gun) h += '</div></section>';
+          gun = { t: g.tarih };
+          var gt = giderToplam(function (x) { return x.tarih === g.tarih; });
+          h += '<div class="bk-gun gc-gun"><span>' + esc(gunBasligi(g.tarih)) + '</span><span>−' + TL(gt) + '</span></div><section class="card gc-kart"><div class="list">';
+        }
+        h += giderSatiri(g);
+      });
+      return h + '</div></section>';
+    }
+  });
+}
+function giderFormu(id) {
+  var g = id ? DB.giderler.filter(function (x) { return x.id === id; })[0] : null;
+  S.gdKat = g ? g.kat : (S.gdKat || 'tamir');
+  sayfaAc({
+    baslik: function () { return g ? 'Gideri düzenle' : 'Gider ekle'; },
+    ciz: function () {
+      return '<div class="form"><div class="field"><span class="lbl">Ne için?</span><div class="gd-katlar">' +
+        GIDER_KAT.map(function (k) {
+          return '<button type="button" class="gd-kat od-' + k[3] + (S.gdKat === k[0] ? ' on' : '') + '" data-act="gd-kat" data-v="' + k[0] + '">' + ikon(k[2]) + '<span>' + k[1] + '</span></button>';
+        }).join('') + '</div></div>' +
+        '<div class="grid2"><div class="field"><label for="gd-tutar">Tutar (₺)</label><input id="gd-tutar" inputmode="decimal" value="' + (g ? esc(g.tutar) : '') + '"></div>' +
+        '<div class="field"><label for="gd-tarih">Tarih</label><input id="gd-tarih" type="date" value="' + esc(g ? g.tarih : bugun()) + '"></div></div>' +
+        '<div class="field"><label for="gd-aciklama">Açıklama</label><input id="gd-aciklama" placeholder="Örn. 30 ton kömür, kombi tamiri" value="' + esc(g ? g.aciklama || '' : '') + '"></div>' +
+        '<button type="button" class="btn block" data-act="gider-kaydet" data-id="' + (g ? g.id : '') + '">Kaydet</button>' +
+        (g ? '<button type="button" class="btn danger block" data-act="gider-sil" data-id="' + g.id + '">Sil</button>' : '') + '</div>';
+    }
+  });
+}
+function giderKaydet(id) {
+  var tutar = sayi($('#gd-tutar').value), tarih = $('#gd-tarih').value || bugun();
+  if (!(tutar > 0)) { toast('Tutarı girin'); return; }
+  var veri = { kat: S.gdKat || 'diger', tutar: tutar, tarih: tarih, aciklama: $('#gd-aciklama').value.trim() };
+  var g = id ? DB.giderler.filter(function (x) { return x.id === id; })[0] : null;
+  if (g) Object.assign(g, veri);
+  else DB.giderler.push(Object.assign({ id: yeniId(), kim: kimdir(), kayit: new Date().toISOString() }, veri));
+  kaydet(); sayfaKapat(); yenile(); toast('Gider kaydedildi');
+}
+
+/* Kiracı hesap dökümü */
+function dokumVerisi(d) {
+  var bas = baslangicAyi(d), giris = d.girisTarihi || (bas ? bas + '-01' : '');
+  var l = DB.odemeler.filter(function (o) {
+    if (o.daireId !== d.id) return false;
+    if ((o.tur === 'kira' || o.tur === 'aidat') && o.donem) return !bas || o.donem >= bas;
+    return !giris || (o.tarih || '') >= giris;
+  }).sort(function (a, b) { return (b.tarih + b.kayit) < (a.tarih + a.kayit) ? -1 : 1; });
+  var top = { kira: 0, aidat: 0, komur: 0, diger: 0 };
+  l.forEach(function (o) { top[o.tur in top ? o.tur : 'diger'] += +o.tutar || 0; });
+  var borc = kiraBorclari(d).reduce(function (t, b) { return t + b.kalan; }, 0);
+  var kSez = komurSezonBul(sezonu(bugun())), kk = komurDurum(d, kSez);
+  return { l: l, top: top, borc: borc, komurKalan: kk ? kk.kalan : 0, sezon: kSez ? kSez.sezon : '', giris: giris };
+}
+function dokumMetni(d) {
+  var v = dokumVerisi(d), dep = depozitoDurumu(d);
+  var m = 'Elif Apartmanı – Daire ' + d.no + ' hesap dökümü\n' + (d.kiraci || '') + '\n' + tarihAdi(bugun()) + '\n\n' +
+    'Giriş: ' + (v.giris ? tarihAdi(v.giris) : '-') + '\nAylık kira: ' + TL(d.kira) + '\n' +
+    'Ödenen kira: ' + TL(v.top.kira) + '\nÖdenen aidat: ' + TL(v.top.aidat) + '\nÖdenen kömür: ' + TL(v.top.komur) + '\n' +
+    'Kira/aidat borcu: ' + (v.borc ? TL(v.borc) : 'Yok') + '\n' + (v.sezon ? 'Kömür borcu (' + v.sezon + '): ' + (v.komurKalan > 0 ? TL(v.komurKalan) : 'Yok') + '\n' : '') +
+    'Depozito: ' + (dep === 'alindi' ? (+d.depozito ? TL(d.depozito) + ' alındı' : 'Alındı') : dep === 'alinmadi' ? 'Alınmadı' : '-') + '\n\nÖdemeler:\n';
+  m += v.l.map(function (o) {
+    var ne = (TUR[o.tur] || 'Diğer') + ((o.tur === 'kira' || o.tur === 'aidat') && o.donem ? ' ' + ayAdi(o.donem) : o.tur === 'komur' && o.donem ? ' ' + o.donem : '');
+    return '• ' + tarihAdi(o.tarih) + ' – ' + ne + ': ' + TL(o.tutar);
+  }).join('\n');
+  return m;
+}
+function dokumSayfasi(id) {
+  var d = daireBul(id); if (!d) return;
+  sayfaAc({
+    baslik: function () { return 'Daire ' + d.no + ' hesap dökümü'; },
+    ciz: function () {
+      var v = dokumVerisi(d), dep = depozitoDurumu(d);
+      var h = '<section class="card"><div class="dk-bas"><span class="no">' + esc(d.no) + '</span><span><b>' + esc(d.kiraci || bosAdi(d)) + '</b>' +
+        '<small>Giriş ' + (v.giris ? esc(tarihAdi(v.giris)) : '-') + ' · Kira ' + TL(d.kira) + '</small></span></div>' +
+        '<div class="dk-kutular">' +
+        '<div class="dk-kutu' + (v.borc ? ' kotu' : ' iyi') + '"><small>Kira / aidat borcu</small><b>' + (v.borc ? TL(v.borc) : 'Yok') + '</b></div>' +
+        '<div class="dk-kutu' + (v.komurKalan > 0 ? ' kotu' : ' iyi') + '"><small>Kömür borcu</small><b>' + (v.komurKalan > 0 ? TL(v.komurKalan) : 'Yok') + '</b></div></div>' +
+        '<dl class="kv"><dt>Ödenen kira</dt><dd>' + TL(v.top.kira) + '</dd><dt>Ödenen aidat</dt><dd>' + TL(v.top.aidat) + '</dd>' +
+        '<dt>Ödenen kömür</dt><dd>' + TL(v.top.komur) + '</dd>' + (v.top.diger ? '<dt>Diğer</dt><dd>' + TL(v.top.diger) + '</dd>' : '') +
+        '<dt>Depozito</dt><dd>' + (dep === 'alindi' ? (+d.depozito ? TL(d.depozito) : 'Alındı') : dep === 'alinmadi' ? '<span style="color:var(--bad)">Alınmadı</span>' : '–') + '</dd></dl></section>' +
+        '<div class="actions">' + (waNumara(d.telefon) ? '<button type="button" class="btn wa-tam" data-act="dokum-wa" data-id="' + d.id + '">WhatsApp ile gönder</button>' : '') +
+        '<button type="button" class="btn ghost" data-act="dokum-paylas" data-id="' + d.id + '">Dosya olarak paylaş</button></div>' +
+        '<section class="card">' + baslik('saat', 'Ödemeler (' + v.l.length + ')') +
+        (v.l.length ? '<div class="list">' + v.l.map(function (o) { return odemeSatiri(o, false); }).join('') + '</div>' : '<p class="empty">Ödeme kaydı yok.</p>') + '</section>';
+      return h;
+    }
+  });
+}
+
+Object.assign(EYLEM, {
+  'giderler': function () { giderlerSayfasi(); },
+  'gider-yeni': function () { giderFormu(null); },
+  'gider-duzenle': function (el) { giderFormu(el.dataset.id); },
+  'gider-kaydet': function (el) { giderKaydet(el.dataset.id || null); },
+  'gider-sil': function (el) {
+    var id = el.dataset.id;
+    onayla('Bu gider silinecek.', 'Sil', function () {
+      DB.giderler = DB.giderler.filter(function (g) { return g.id !== id; });
+      kaydet(); YIGIN.pop(); YIGIN.pop(); if (YIGIN.length) sayfaCiz(); else sayfaKapat(); ciz(); toast('Silindi');
+    });
+  },
+  'gd-kat': function (el) {
+    S.gdKat = el.dataset.v;
+    var l = document.querySelectorAll('.gd-kat');
+    for (var i = 0; i < l.length; i++) l[i].classList.toggle('on', l[i] === el);
+  },
+  'dokum': function (el) { dokumSayfasi(el.dataset.id); },
+  'dokum-wa': function (el) {
+    var d = daireBul(el.dataset.id), n = waNumara(d && d.telefon);
+    if (!n) { toast('Telefon numarası yok'); return; }
+    var url = 'https://wa.me/' + n + '?text=' + encodeURIComponent(dokumMetni(d));
+    if (BR && BR.openUrl) BR.openUrl(url); else window.open(url);
+  },
+  'dokum-paylas': function (el) {
+    var d = daireBul(el.dataset.id); if (!d) return;
+    var ad = 'Daire ' + d.no + ' hesap dokumu ' + bugun() + '.txt';
+    if (BR && BR.shareFile) BR.shareFile(dokumMetni(d), ad, 'text/plain');
+    else kopyala(dokumMetni(d), 'Hesap dökümü');
+  }
 });
 
 if (typeof document !== 'undefined' && document.getElementById('main')) document.addEventListener('DOMContentLoaded', baslat);

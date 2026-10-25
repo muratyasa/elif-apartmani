@@ -102,7 +102,7 @@ function fsIstek(method, url, govde) {
 function genelVeri() {
   var a = Object.assign({}, DB.ayarlar);
   delete a.bildirimGoruldu;
-  return { ayarlar: a, komur: DB.komur, taksitler: DB.taksitler };
+  return { ayarlar: a, komur: DB.komur, taksitler: DB.taksitler, giderler: DB.giderler || [] };
 }
 function yerelHarita() {
   var m = { genel: {} }, e = (oturum() || {}).email || '';
@@ -178,6 +178,7 @@ function uygula(kol, belgeler) {
       var gor = DB.ayarlar.bildirimGoruldu;
       DB.ayarlar = Object.assign(bosVeri().ayarlar, g.ayarlar || {}, { bildirimGoruldu: gor });
       DB.komur = g.komur || []; DB.taksitler = g.taksitler || [];
+      if (Array.isArray(g.giderler)) DB.giderler = g.giderler; /* eski sürümün yazdığı kayıtta gider yoksa yerel giderler korunur */
       y.genel[b.id] = JSON.stringify(genelVeri());
       return;
     }
