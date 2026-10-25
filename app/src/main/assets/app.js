@@ -2722,7 +2722,7 @@ var REHBER = [
     ['Kömür borcu nasıl hesaplanıyor?', 'Her petek 600 kg kömür sayılır. Dairenin borcu = petek sayısı × 600 kg × ton fiyatı. Boş ve kiraya verilmeyen dairelerin payı “Ev sahibi payı” olarak görünür.', 'sekme:komur'],
     ['Ton fiyatı nasıl değiştirilir?', 'Kömür sayfası → sağ üstteki “Fiyatı düzenle”.', 'komur-ayar'],
     ['Kömür ödemesi nasıl girilir?', 'Kömür sayfasında dairenin sağındaki ₺ düğmesine dokunun ya da daire sayfasında “Kömür ödemesi gir”.', 'sekme:komur'],
-    ['Kömür sayfasındaki işaretler ne anlama geliyor?', 'Yeşil ✓: tamamı ödendi. Sarı ₺: bir kısmı ödendi, kalanı girmek için dokunun. Yeşil çerçeveli ₺: hiç ödenmedi. Kırmızı ev: ev sahibi payı.', 'sekme:komur'],
+    ['Kömür sayfasındaki işaretler ne anlama geliyor?', 'Yeşil onay tamamı ödendi, sarı lira bir kısmı ödendi, yeşil çerçeveli lira hiç ödenmedi, kırmızı ev ev sahibi payı.', 'sekme:komur', 'komur'],
     ['Kömürcüye ödediğimi nereye yazarım?', 'Geçmiş → “Giderler” → “Gider ekle” → “Kömür alımı”. Kömür sayfasında toplanan ile ödenen yan yana, kasa farkı görünür.', 'giderler']
   ] },
   { k: 'Giderler ve rapor', ik: 'grafik', l: [
@@ -2752,11 +2752,31 @@ var REHBER = [
     ['Üstte çıkan “Yenile” ya da “Güncelle” nedir?', '“Yenile”: yeni ekranlar indi, dokununca hemen gelir. “Güncelle”: uygulamanın yeni sürümü var, dokunup kurulumu onaylayın; kayıtlar silinmez.', '']
   ] },
   { k: 'Simgeler ve renkler', ik: 'bilgi', l: [
-    ['Ödeme durum renkleri', 'Yeşil “Ödendi”: tamam. Gri “Bekliyor”: ödeme günü gelmedi. Sarı “Kısmi”: bir kısmı ödendi. Kırmızı “Gecikti”: ödeme günü geçti.', ''],
-    ['Bildirim renkleri', 'Mavi takvim: kira günü. Kırmızı üçgen: ödenmemiş kira. Turuncu alev: kömür. Bordo alev: ödenmemiş kömür. Sarı kilit: depozito. Mor ok: kira artışı. Yeşil grafik: ay özeti.', 'bildirimler'],
-    ['Daire satırındaki turuncu rozet', 'Petek simgesi ve yanındaki sayı dairedeki petek sayısıdır. Altındaki yeşil ✓ ise o ayın kirasını tek dokunuşla ödendi yapar.', 'sekme:daireler']
+    ['Ödeme durum işaretleri', 'Ödendi tamam, Bekliyor ödeme günü gelmedi, Kısmi bir kısmı ödendi, Gecikti ödeme günü geçti.', '', 'durum'],
+    ['Bildirim simgeleri', 'kira günü, ödenmemiş kira, kömür, ödenmemiş kömür, depozito, kira artışı, ay özeti, beyanname', 'bildirimler', 'bildirim'],
+    ['Daire satırındaki işaretler', 'petek sayısı, ödendi yap düğmesi', 'sekme:daireler', 'daire'],
+    ['Kart başlıklarındaki simgeler', 'kira artışı, depozito, kömür, eksik bilgi, kira ve aidat, arıza', '', 'kart']
   ] }
 ];
+/* Rehberde simgeler: uygulamadaki gerçek işaret + karşısında anlamı */
+function lejantHtml(tur) {
+  function bk(ik, renk) { return '<span class="lj-kutu" style="--lk:' + renk[0] + ';--lks:' + renk[1] + '">' + ikon(ik) + '</span>'; }
+  var R = { mavi: ['#1D5B8F', '#E0EBF5'], kirmizi: ['#B3362A', '#FBE1DC'], turuncu: ['#C2410C', '#FDE8DC'], bordo: ['#8B1E3F', '#F6DDE5'],
+    sari: ['#8F6A00', '#FBF0C9'], mor: ['#6B3FA0', '#ECE3F7'], yesil: ['#0F766E', '#D9F1EE'], lacivert: ['#1E3A8A', '#E0E7FF'], gri: ['#5F6B7A', '#E7ECF1'] };
+  var l = {
+    durum: [[chip('odendi'), 'Tamamı ödendi'], [chip('bekliyor'), 'Ödeme günü henüz gelmedi'], [chip('kismi'), 'Bir kısmı ödendi, kalanı bekleniyor'], [chip('gecikti'), 'Ödeme günü geçti, ödenmedi']],
+    bildirim: [[bk('takvim', R.mavi), 'Kira günü'], [bk('uyari', R.kirmizi), 'Ödenmemiş kira'], [bk('alev', R.turuncu), 'Kömür ödemesi'],
+      [bk('alev', R.bordo), 'Ödenmemiş kömür'], [bk('kilit', R.sari), 'Depozito alınmadı'], [bk('artis', R.mor), 'Kira artışı'],
+      [bk('grafik', R.yesil), 'Ay sonu özeti'], [bk('fis', R.lacivert), 'Beyanname hatırlatması']],
+    daire: [['<span class="petek-rozet"><span class="pr-ust">' + ikon('petek') + '<b>3</b></span></span>', 'Dairedeki petek sayısı'],
+      ['<span class="paid-btn lj-btn">✓</span>', 'Dokununca o ayın kirası ve aidatı ödendi olur']],
+    komur: [['<span class="dy dy-ok">' + ikon('onay') + '</span>', 'Kömürün tamamı ödendi'], ['<span class="paid-btn dy-kismi lj-btn">₺</span>', 'Bir kısmı ödendi; dokunup kalanı girin'],
+      ['<span class="paid-btn lj-btn">₺</span>', 'Hiç ödenmedi; dokunup ödemeyi girin'], ['<span class="dy dy-ev">' + ikon('ev') + '</span>', 'Ev sahibi payı (boş ya da kiraya verilmeyen daire)']],
+    kart: [[bk('artis', R.mor), 'Kira artışı'], [bk('kilit', R.sari), 'Depozito'], [bk('alev', R.turuncu), 'Kömür'], [bk('bilgi', R.turuncu), 'Eksik bilgi'],
+      [bk('para', R.mavi), 'Kira ve aidat'], [bk('arac', R.gri), 'Arıza ve işler'], [bk('cuzdan', R.kirmizi), 'Giderler']]
+  }[tur] || [];
+  return '<div class="lejant' + (tur === 'durum' ? '' : ' dar') + '">' + l.map(function (r) { return '<div class="lj-satir"><span class="lj-ik">' + r[0] + '</span><span class="lj-yazi">' + r[1] + '</span></div>'; }).join('') + '</div>';
+}
 function yardimSayfasi() {
   S.yAra = '';
   sayfaAc({
@@ -2778,7 +2798,7 @@ function yardimListesiHtml() {
     if (!l.length) return;
     bulundu += l.length;
     h += '<section class="card rehber">' + baslik(b.ik, b.k) + l.map(function (x, i) {
-      return '<details class="sss"' + (q && l.length <= 3 ? ' open' : '') + '><summary>' + esc(x[0]) + '</summary><p>' + esc(x[1]) + '</p>' +
+      return '<details class="sss"' + (q && l.length <= 3 ? ' open' : '') + '><summary>' + esc(x[0]) + '</summary>' + (x[3] ? lejantHtml(x[3]) : '<p>' + esc(x[1]) + '</p>') +
         (x[2] ? '<button type="button" class="btn small ghost" data-act="yardim-git" data-v="' + x[2] + '">Göster ›</button>' : '') + '</details>';
     }).join('') + '</section>';
   });
