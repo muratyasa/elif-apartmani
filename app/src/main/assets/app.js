@@ -440,7 +440,8 @@ function saatGoster() {
   var el = document.getElementById('top-sub'); if (!el) return;
   var n = new Date(), gun = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][n.getDay()];
   var ay = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][n.getMonth()];
-  el.innerHTML = '<span>' + n.getDate() + ' ' + ay + ' ' + n.getFullYear() + ', ' + gun + '</span><b>' + pad(n.getHours()) + ':' + pad(n.getMinutes()) + '</b>';
+  el.innerHTML = '<span class="tarih-uzun">' + n.getDate() + ' ' + ay + ' ' + n.getFullYear() + ', ' + gun + '</span>' +
+    '<span class="tarih-kisa">' + n.getDate() + ' ' + ay + ', ' + gun.slice(0, 3) + '</span><b>' + pad(n.getHours()) + ':' + pad(n.getMinutes()) + '</b>';
 }
 if (typeof setInterval === 'function' && typeof document !== 'undefined') setInterval(saatGoster, 15000);
 function ciz() {
@@ -2696,6 +2697,104 @@ DEGISIM['kilit'] = function (el) {
   try { BR.setLock(el.checked); } catch (e) { /* yoksay */ }
   toast(el.checked ? 'Uygulama kilidi açıldı' : 'Uygulama kilidi kapatıldı');
 };
+
+/* ---------- Uygulama içi rehber: aranabilir soru-cevap, "Göster" ile ilgili ekrana gider ---------- */
+var REHBER = [
+  { k: 'Ödemeler', ik: 'para', l: [
+    ['Kira ödemesi nasıl girilir?', 'En kolayı: Daireler sayfasında ödeyen dairenin sağındaki yeşil ✓ düğmesine dokunun; o ayın kirası ve aidatı bugünün tarihiyle kaydedilir. Farklı tutar, tarih ya da ödeme şekli için sağ alttaki “+ Ödeme Gir” düğmesini kullanın.', 'odeme-yeni'],
+    ['Yanlışlıkla ödendi yaptım, nasıl geri alırım?', '✓ düğmesine bastıktan sonra altta çıkan “Geri al”a 6 saniye içinde dokunun. Kaçırdıysanız Geçmiş sayfasında ödemeye dokunun, “Ödemeyi sil” deyin.', 'sekme:gecmis'],
+    ['Sildiğim ödemeyi geri getirebilir miyim?', 'Evet. Silinen ödemeler 30 gün saklanır: Geçmiş → sağ üstteki “Silinenler” → “Geri getir”.', 'silinenler'],
+    ['Eksik (kısmi) ödeme nasıl girilir?', '“+ Ödeme Gir” ile daireyi ve ayı seçip gelen tutarı yazın. Kalan kısım sarı “Kısmi” olarak görünür ve hatırlatılmaya devam eder.', 'odeme-yeni'],
+    ['Kiracıya “ödemeniz alındı” mesajı nasıl gönderilir?', 'Ödemeyi kaydedince altta yeşil “Kiracıya bildir” çıkar; dokununca WhatsApp hazır mesajla açılır. Sonradan göndermek için Geçmiş’te ödemeye dokunun.', ''],
+    ['Geçmiş ayları tek tek mi gireceğim?', 'Hayır. Daireye girin → en alttaki “Geçmişi toplu gir” ile seçtiğiniz aylar tek seferde ödendi olarak kaydedilir.', 'sekme:daireler'],
+    ['Ödemesi geciken kiracıya nasıl hatırlatırım?', 'Daireye girin → yeşil WhatsApp düğmesi. Ödenmemiş aylar ve tutarlar mesaja kendiliğinden yazılır.', 'sekme:daireler']
+  ] },
+  { k: 'Daireler ve kiracılar', ik: 'bina', l: [
+    ['Yeni kiracı nasıl eklenir?', 'Boş daireye girin → “Yeni kiracı”. Ad, telefon, giriş tarihi, kira ve depozitoyu yazıp kaydedin.', 'sekme:daireler'],
+    ['Kiracı çıkınca ne yapmalıyım?', 'Daireye girin → altta “Kiracı çıktı”. Son ayı seçin; kiracı “Eski kiracılar”a taşınır, ödenmemiş borçları görünmeye devam eder.', 'sekme:daireler'],
+    ['Abone numarası, petek sayısı nasıl değiştirilir?', 'Daireye girin → “Düzenle”. Elektrik ve su abone no, petek sayısı, kira ve özel aidat oradadır. Eksikleri toplu görmek için Özet’teki “Eksik bilgi → Tamamla”.', 'abonelikler'],
+    ['Kira artışı nasıl yapılır?', 'Özet’teki “Kira artışı yaklaşanlar”dan daireye dokunun ya da daire → “Kira artışı”. Ayarlar’a TÜFE oranını yazarsanız yeni kira hazır gelir. Eski aylar eski kirayla kalır.', 'sekme:ozet'],
+    ['Boş daire için ilan nasıl hazırlanır?', 'Boş daireye girin → “Kiralık ilanı hazırla”. Metni düzenleyip WhatsApp’ta paylaşın. İlandaki telefonu Ayarlar → Kira artışı ve ilan’dan yazın.', 'sekme:daireler'],
+    ['Kiracının hesap dökümünü nasıl gönderirim?', 'Daireye girin → altta “Hesap dökümü”. Borç, ödenen kira-aidat-kömür ve bütün ödemeler çıkar; WhatsApp ile gönderin ya da dosya olarak paylaşın.', 'sekme:daireler'],
+    ['Depozito neden borca eklenmiyor?', 'Depozito geri verilecek bir para olduğu için toplam borçta sayılmaz. Alınmadıysa Özet’te ayrı gösterilir ve 10 günde bir hatırlatılır.', '']
+  ] },
+  { k: 'Kömür', ik: 'alev', l: [
+    ['Kömür borcu nasıl hesaplanıyor?', 'Her petek 600 kg kömür sayılır. Dairenin borcu = petek sayısı × 600 kg × ton fiyatı. Boş ve kiraya verilmeyen dairelerin payı “Ev sahibi payı” olarak görünür.', 'sekme:komur'],
+    ['Ton fiyatı nasıl değiştirilir?', 'Kömür sayfası → sağ üstteki “Fiyatı düzenle”.', 'komur-ayar'],
+    ['Kömür ödemesi nasıl girilir?', 'Kömür sayfasında dairenin sağındaki ₺ düğmesine dokunun ya da daire sayfasında “Kömür ödemesi gir”.', 'sekme:komur'],
+    ['Kömür sayfasındaki işaretler ne anlama geliyor?', 'Yeşil ✓: tamamı ödendi. Sarı ₺: bir kısmı ödendi, kalanı girmek için dokunun. Yeşil çerçeveli ₺: hiç ödenmedi. Kırmızı ev: ev sahibi payı.', 'sekme:komur'],
+    ['Kömürcüye ödediğimi nereye yazarım?', 'Geçmiş → “Giderler” → “Gider ekle” → “Kömür alımı”. Kömür sayfasında toplanan ile ödenen yan yana, kasa farkı görünür.', 'giderler']
+  ] },
+  { k: 'Giderler ve rapor', ik: 'grafik', l: [
+    ['Gider nasıl eklenir?', 'Geçmiş → kırmızı “Giderler” → “Gider ekle”. Kategori, tutar, tarih ve açıklama yazın.', 'giderler'],
+    ['Net kazancı nerede görürüm?', 'Geçmiş → “Rapor”. “Gelir – gider” kartında toplam tahsilat, giderler ve net kazanç vardır.', 'rapor'],
+    ['Tek bir dairenin grafiğini nasıl görürüm?', 'Rapor sayfasının üstündeki daire seçiciden daireyi seçin ya da “Daire daire kira geliri” listesinde daireye dokunun.', 'rapor'],
+    ['Muhasebeciye liste nasıl verilir?', 'Rapor sayfasının en altındaki “Excel için dışa aktar”. Her yıl 1 Mart’ta geçen yılın kira geliri ayrıca hatırlatılır.', 'rapor']
+  ] },
+  { k: 'Bildirimler', ik: 'zil', l: [
+    ['Bildirimler ne zaman gelir?', 'Kira ödeme günü (her ayın 15’i), ödenmezse 3 günde bir; alınmamış depozito 10 günde bir; kira artışından 30 ve 7 gün önce; her ayın 20’sinde ay özeti.', 'bildirimler'],
+    ['Bildirim saatini nasıl değiştiririm?', 'Ayarlar → Bildirimler → “Bildirim saati”.', 'sekme:ayarlar'],
+    ['Bildirimden ödeme işaretlenebilir mi?', 'Evet. Kira bildiriminin altındaki “Ödendi işaretle”ye dokunun; bildirimdeki daireler listelenir, ödeyenin ✓ işaretine basın.', ''],
+    ['Bildirim gelmiyor, ne yapmalıyım?', 'Ayarlar → Bildirimler → “Deneme bildirimi gönder”. Gelmezse telefon ayarlarında Elif Apartmanı için bildirim iznini ve pil tasarrufu kısıtlamasını kontrol edin.', 'sekme:ayarlar']
+  ] },
+  { k: 'Ortak kullanım ve yedek', ik: 'bulut', l: [
+    ['Üç telefon nasıl aynı kayıtları görüyor?', 'Her telefonda kendi e-postanızla giriş yaptığınızda kayıtlar Firebase üzerinden eşitlenir. Bir telefonda girilen ödeme birkaç saniye içinde diğerlerinde görünür.', 'sekme:ayarlar'],
+    ['Şifremi unuttum.', 'Ayarlar → Ortak kullanım → “Şifremi unuttum”. E-postanıza sıfırlama bağlantısı gelir.', 'sekme:ayarlar'],
+    ['Yedek nasıl alınır?', 'Uygulama her gün kendiliğinden yedek alır (Ayarlar → Otomatik yedek). Ayda bir de Ayarlar → “Drive’a yedekle” ile en güvenli kopyayı alın.', 'sekme:ayarlar'],
+    ['Telefon değişirse ne olur?', 'Yeni telefona uygulamayı kurup aynı e-postayla giriş yapın; bütün kayıtlar geri gelir. Gerekirse Ayarlar → “Yedekten yükle”.', 'sekme:ayarlar'],
+    ['Kayıtların altında kimin adı yazıyor?', 'İşlemi yapan kişinin adı: Umut, Murat ya da Ömer.', '']
+  ] },
+  { k: 'Görünüm ve telefon', ik: 'kalem', l: [
+    ['Yazıları nasıl büyütürüm?', 'Ayarlar → Görünüm → Normal / Büyük / Çok büyük. Yalnız o telefonu etkiler.', 'sekme:ayarlar'],
+    ['Petek yazısını nasıl gizlerim?', 'Ayarlar → Görünüm → “Petek simgesinin altında ‘petek’ yazsın” kutusunun işaretini kaldırın.', 'sekme:ayarlar'],
+    ['Ana ekrana kutucuk nasıl eklenir?', 'Telefonun ana ekranında boş bir yere basılı tutun → Widget’lar → Elif Apartmanı’nı sürükleyin. Kutucuk uygulama her açıldığında yenilenir.', ''],
+    ['Uygulamaya kilit koyabilir miyim?', 'Ayarlar → Uygulama kilidi. Telefonun kendi parmak izi/PIN kilidi sorulur.', 'sekme:ayarlar'],
+    ['Üstte çıkan “Yenile” ya da “Güncelle” nedir?', '“Yenile”: yeni ekranlar indi, dokununca hemen gelir. “Güncelle”: uygulamanın yeni sürümü var, dokunup kurulumu onaylayın; kayıtlar silinmez.', '']
+  ] },
+  { k: 'Simgeler ve renkler', ik: 'bilgi', l: [
+    ['Ödeme durum renkleri', 'Yeşil “Ödendi”: tamam. Gri “Bekliyor”: ödeme günü gelmedi. Sarı “Kısmi”: bir kısmı ödendi. Kırmızı “Gecikti”: ödeme günü geçti.', ''],
+    ['Bildirim renkleri', 'Mavi takvim: kira günü. Kırmızı üçgen: ödenmemiş kira. Turuncu alev: kömür. Bordo alev: ödenmemiş kömür. Sarı kilit: depozito. Mor ok: kira artışı. Yeşil grafik: ay özeti.', 'bildirimler'],
+    ['Daire satırındaki turuncu rozet', 'Petek simgesi ve yanındaki sayı dairedeki petek sayısıdır. Altındaki yeşil ✓ ise o ayın kirasını tek dokunuşla ödendi yapar.', 'sekme:daireler']
+  ] }
+];
+function yardimSayfasi() {
+  S.yAra = '';
+  sayfaAc({
+    baslik: function () { return 'Rehber'; },
+    ciz: function () {
+      return '<input id="y-ara" type="search" placeholder="Ne öğrenmek istiyorsunuz? Örn. kömür, yedek, geri al" aria-label="Rehberde ara">' +
+        '<div id="y-liste" class="stack">' + yardimListesiHtml() + '</div>';
+    },
+    hazir: function () {
+      var a = document.getElementById('y-ara');
+      if (a) a.addEventListener('input', function () { S.yAra = a.value; document.getElementById('y-liste').innerHTML = yardimListesiHtml(); });
+    }
+  });
+}
+function yardimListesiHtml() {
+  var q = (S.yAra || '').trim().toLocaleLowerCase('tr'), h = '', bulundu = 0;
+  REHBER.forEach(function (b, bi) {
+    var l = b.l.filter(function (x) { return !q || (x[0] + ' ' + x[1] + ' ' + b.k).toLocaleLowerCase('tr').indexOf(q) >= 0; });
+    if (!l.length) return;
+    bulundu += l.length;
+    h += '<section class="card rehber">' + baslik(b.ik, b.k) + l.map(function (x, i) {
+      return '<details class="sss"' + (q && l.length <= 3 ? ' open' : '') + '><summary>' + esc(x[0]) + '</summary><p>' + esc(x[1]) + '</p>' +
+        (x[2] ? '<button type="button" class="btn small ghost" data-act="yardim-git" data-v="' + x[2] + '">Göster ›</button>' : '') + '</details>';
+    }).join('') + '</section>';
+  });
+  return bulundu ? h : '<p class="empty">Bu konuda bir cevap bulunamadı. Başka bir kelimeyle arayın.</p>';
+}
+Object.assign(EYLEM, {
+  'yardim': function () { yardimSayfasi(); },
+  'yardim-git': function (el) {
+    var v = el.dataset.v;
+    YIGIN = []; sayfaCiz();
+    if (v.indexOf('sekme:') === 0) { S.tab = v.slice(6); ciz(); window.scrollTo(0, 0); return; }
+    if (v === 'giderler' || v === 'rapor' || v === 'silinenler') { S.tab = 'gecmis'; ciz(); }
+    if (v === 'komur-ayar') { S.tab = 'komur'; ciz(); }
+    if (EYLEM[v]) EYLEM[v]({ dataset: {} });
+  }
+});
 
 if (typeof document !== 'undefined' && document.getElementById('main')) document.addEventListener('DOMContentLoaded', baslat);
 if (typeof module !== 'undefined') {

@@ -575,3 +575,36 @@ body.buyuk .hap { padding: 10px 8px; }
 .petek-rozet svg { width: 18px; height: 18px; }
 .petek-rozet small { font-size: 10.5px; font-weight: 700; line-height: 1.1; letter-spacing: .2px; }
 .petek-rozet.yazili { padding: 4px 6px 3px; }
+
+/* Rehber */
+.top .yardim-btn { margin-right: 6px; }
+.rehber { gap: 0; }
+.rehber .card-title { margin-bottom: 4px; }
+.sss { border-top: 1px solid var(--line); }
+.sss summary { list-style: none; cursor: pointer; padding: 12px 28px 12px 0; font-weight: 600; font-size: 16px; position: relative; }
+.sss summary::-webkit-details-marker { display: none; }
+.sss summary::after { content: '›'; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 22px; color: var(--muted); transition: transform .15s; }
+.sss[open] summary::after { transform: translateY(-50%) rotate(90deg); }
+.sss p { margin: 0 0 10px; font-size: 15px; line-height: 1.5; color: var(--ink); opacity: .85; }
+.sss .btn.small { margin-bottom: 12px; }
+
+.tarih-kisa { display: none; }
+.top-title { min-width: 0; }
+.brand { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.buyuk .top-row { gap: 8px; }
+body.buyuk .logo { width: 38px; height: 38px; border-radius: 11px; }
+body.buyuk .logo svg { width: 22px; height: 22px; }
+body.buyuk .top .bell { width: 36px; height: 36px; }
+body.buyuk .top .bell svg { width: 20px; height: 20px; }
+body.buyuk .top .yardim-btn { margin-right: 0; }
+@media (max-width: 400px) {
+  body.buyuk .brand { font-size: 18px; }
+  body.buyuk .tarih-uzun { display: none; }
+  body.buyuk .tarih-kisa { display: inline; }
+}
+@media (max-width: 370px) {
+  body.buyuk .brand { font-size: 16px; }
+  body.buyuk .logo { width: 34px; height: 34px; }
+  body.buyuk .top-row { gap: 6px; }
+  body.buyuk .top .bell { width: 34px; height: 34px; }
+}

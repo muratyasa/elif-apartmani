@@ -39,6 +39,6 @@ Kiracı verisi bu depoda YOKTUR ve konmamalıdır (depo herkese açık). Veri ge
 - Daire listesinde arama/WhatsApp düğmesi yok (daire sayfasında var); kira ve aidat ayrı satırlarda; sağ sütunda petek rozeti (gerçekçi petek simgesi + sayı, altında isteğe bağlı "petek" yazısı: Ayarlar → Görünüm, `elif-petek-yazi`) ve altında ödeme düğmesi.
 - Uygulama "gardırop gibi" düzenli olmalı: gereksiz açıklama/tekrar yok, bilgiler hizalı, aranan kolay bulunur.
 - Bildirim ve geçmiş: gün başlıklarıyla gruplu; her tür kendi rengi/ikonu. "İlk yükleme" notları gösterilmez (`odemeNotu`).
-- Üst bant: logo + ad + canlı tarih-saat (`saatGoster`), dönem seçici ikinci satırda.
+- Üst bant: logo + ad + canlı tarih-saat (`saatGoster`), ? (Rehber, `REHBER` soru-cevap + "Göster" → `yardim-git`) ve zil; dönem seçici ikinci satırda. Rehberi yeni özellik eklendikçe güncelle.
 - Tasarım sade, ikonlar tutarlı ve az; her kart başlığı `baslik(ikon, metin)` ile.
 - İşlemi yapan kişi e-posta değil adla görünür: `senk.js` → `KISI_ADLARI` (e-postanın `epostaIzi` parmak izi → ad). Depo açık olduğu için e-posta yazılmaz. Umut (kullanıcı), Murat (babası), Ömer (kardeşi). Yeni kişi eklenince izi hesaplanıp eklenir.
