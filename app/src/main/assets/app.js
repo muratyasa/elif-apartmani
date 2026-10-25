@@ -443,6 +443,7 @@ function saatGoster() {
 }
 if (typeof setInterval === 'function' && typeof document !== 'undefined') setInterval(saatGoster, 15000);
 function ciz() {
+  if (typeof widgetGuncelle === 'function') widgetGuncelle();
   var tabs = document.querySelectorAll('#tabs button');
   for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle('on', tabs[i].dataset.tab === S.tab);
   var nav = $('#periodnav');
@@ -1801,14 +1802,14 @@ var EYLEM = {
     for (var i = 0; i < b.length; i++) b[i].classList.toggle('on', b[i].dataset.v === S.topluSekil);
   },
   'hizli-odendi': function (el) {
-    var d = daireBul(el.dataset.id), ym = S.ay, k = kiraDurum(d, ym);
+    var d = daireBul(el.dataset.id), ym = el.dataset.ym || S.ay, k = kiraDurum(d, ym);
     if (!(k.kalan > 0)) return;
     var tid = yeniId(), simdi = new Date().toISOString();
     [['kira', k.kira.kalan], ['aidat', k.aidat.kalan]].forEach(function (p) {
       if (p[1] > 0) DB.odemeler.push({ id: yeniId(), kayit: simdi, hizli: tid, daireId: d.id, tur: p[0], donem: ym, tutar: p[1],
         tarih: bugun(), sekil: 'Nakit', aciklama: '', not: '' });
     });
-    kaydet(); ciz();
+    kaydet(); yenile();
     toast('Daire ' + d.no + ' · ' + ayAdi(ym) + ' ödendi', function () {
       DB.odemeler = DB.odemeler.filter(function (o) { return o.hizli !== tid; });
       kaydet(); yenile(); toast('Geri alındı');
@@ -1998,6 +1999,7 @@ function baslat() {
   hatirlatmalariGonder();
   setTimeout(function () { guncellemeKontrol(false); }, 1500);
   if (typeof esitle === 'function') esitle('acilis');
+  setTimeout(function () { if (W.bildirimEylemiKontrol) W.bildirimEylemiKontrol(); }, 300);
 }
 
 /* Elif Apartmanı – ek özellikler:
@@ -2567,7 +2569,7 @@ function beyanBildirimi(gun0, son) {
 }
 function ekAyarlarHtml() {
   var v = yaziBoyu(), A = DB.ayarlar;
-  return '<section class="card">' + baslik('kalem', 'Yazı boyutu') +
+  return kilitKartiHtml() + '<section class="card">' + baslik('kalem', 'Yazı boyutu') +
     '<div class="seg">' + [[1, 'Normal'], [1.12, 'Büyük'], [1.24, 'Çok büyük']].map(function (x) {
       return '<button type="button" data-act="yazi-boyu" data-v="' + x[0] + '" class="' + (Math.abs(v - x[0]) < 0.01 ? 'on' : '') + '">' + x[1] + '</button>';
     }).join('') + '</div><p class="note">Yalnız bu telefonu etkiler.</p></section>' +
@@ -2604,6 +2606,67 @@ Object.assign(EYLEM, {
     if (BR && BR.openUrl) BR.openUrl(url); else window.open(url);
   }
 });
+
+/* ---------- Bildirimden "Ödendi işaretle", ana ekran kutucuğu, uygulama kilidi ---------- */
+W.bildirimEylemiKontrol = function () {
+  var raw = '';
+  try { raw = BR && BR.bekleyenEylem ? BR.bekleyenEylem() : ''; } catch (e) { raw = ''; }
+  if (!raw) return;
+  var ids = [];
+  try { ids = JSON.parse(raw) || []; } catch (e) { ids = []; }
+  if (ids.length) odemeIsaretSayfasi(ids);
+};
+function odemeIsaretSayfasi(ids) {
+  sayfaAc({
+    baslik: function () { return 'Ödeme işaretle'; },
+    ciz: function () {
+      var satirlar = ids.map(daireBul).filter(Boolean).map(function (d) {
+        var b = kiraBorclari(d), ym = b.length ? b[0].ym : buAy(), k = kiraDurum(d, ym);
+        var odendi = !(k.kalan > 0);
+        return '<div class="row-wrap"><button type="button" class="row" data-act="daire-ac" data-id="' + d.id + '"><span class="no">' + esc(d.no) + '</span>' +
+          '<span class="row-main"><span class="row-title">' + esc(d.kiraci || bosAdi(d)) + '</span><span class="row-sub">' + esc(ayAdi(ym)) +
+          (odendi ? ' · ödendi' : ' · ' + TL(k.kalan) + (b.length > 1 ? ' (+' + (b.length - 1) + ' ay daha)' : '')) + '</span></span></button>' +
+          (odendi ? '<span class="dy dy-ok">' + ikon('onay') + '</span>' : '<button type="button" class="paid-btn" data-act="hizli-odendi" data-id="' + d.id + '" data-ym="' + ym + '" aria-label="Ödendi">✓</button>') + '</div>';
+      }).join('');
+      return '<section class="card"><p class="note">Ödeyen dairenin yanındaki ✓ işaretine dokunun.</p><div class="list">' + satirlar + '</div></section>';
+    }
+  });
+}
+var sonWidget = '';
+function widgetGuncelle() {
+  if (!BR || !BR.setWidget || !DB.daireler.length) return;
+  var cur = buAy(), bekleyen = 0, geciken = 0, kalan = 0, toplanan = 0;
+  daireler().forEach(function (d) {
+    var k = kiraDurum(d, cur);
+    if (k.kod === 'yok' || k.kod === 'tanimsiz') return;
+    toplanan += Math.min(k.odenen, k.beklenen);
+    if (k.kalan > 0) { bekleyen++; kalan += k.kalan; if (k.kod === 'gecikti') geciken++; }
+  });
+  var n = new Date(), o = {
+    ust: 'Elif Apartmanı · ' + AYLAR[+cur.slice(5) - 1],
+    buyuk: !bekleyen ? 'Herkes ödedi ✓' : geciken ? geciken + ' daire gecikti' : bekleyen + ' daire bekleniyor',
+    alt: bekleyen ? 'Kalan ' + TL(kalan) + ' · toplanan ' + TL(toplanan) : 'Toplanan ' + TL(toplanan),
+    renk: !bekleyen ? '#1B7A4C' : geciken ? '#B3362A' : '#1D5B8F',
+    saat: pad(n.getHours()) + ':' + pad(n.getMinutes())
+  };
+  var anahtar = o.ust + o.buyuk + o.alt;
+  if (anahtar === sonWidget) return;
+  sonWidget = anahtar;
+  try { BR.setWidget(JSON.stringify(o)); } catch (e) { /* yoksay */ }
+}
+function kilitKartiHtml() {
+  if (!BR || !BR.setLock) return '';
+  var acik = false, var_ = false;
+  try { acik = BR.getLock(); var_ = BR.lockAvailable(); } catch (e) { /* yoksay */ }
+  return '<section class="card">' + baslik('kilit', 'Uygulama kilidi') +
+    '<label class="check kutu"><input type="checkbox" data-change="kilit"' + (acik ? ' checked' : '') + (var_ ? '' : ' disabled') + '> Açılışta parmak izi / PIN sor</label>' +
+    (var_ ? '<p class="note">Telefonun kendi kilidi kullanılır. 1 dakikadan uzun kapalı kalınca tekrar sorar.</p>'
+      : '<p class="note warn">Bunun için telefonda ekran kilidi (PIN, desen ya da parmak izi) açık olmalı.</p>') + '</section>';
+}
+DEGISIM['kilit'] = function (el) {
+  try { BR.setLock(el.checked); } catch (e) { /* yoksay */ }
+  toast(el.checked ? 'Uygulama kilidi açıldı' : 'Uygulama kilidi kapatıldı');
+};
 
 if (typeof document !== 'undefined' && document.getElementById('main')) document.addEventListener('DOMContentLoaded', baslat);
 if (typeof module !== 'undefined') {

@@ -97,7 +97,7 @@ final class Reminders {
                         boolean bugunku = tarih.equals(bugun);
                         boolean kacirilan = !son.isEmpty() && tarih.compareTo(son) > 0 && tarih.compareTo(bugun) < 0;
                         if (bugunku || kacirilan) {
-                            post(c, 100 + k, it.optString("baslik"), it.optString("metin"));
+                            post(c, 100 + k, it.optString("baslik"), it.optString("metin"), it.optString("tur"), it.optJSONArray("daireler"));
                             log(c, it.optString("tur"), it.optString("baslik"), it.optString("metin"), it.optJSONArray("daireler"));
                             shown++;
                         }
@@ -137,6 +137,10 @@ final class Reminders {
     }
 
     static void post(Context c, int id, String title, String text) {
+        post(c, id, title, text, null, null);
+    }
+
+    static void post(Context c, int id, String title, String text, String tur, JSONArray daireler) {
         ensureChannel(c);
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
@@ -154,6 +158,17 @@ final class Reminders {
                 .setColor(0xFF1D5B8F)
                 .setAutoCancel(true)
                 .setContentIntent(pi);
+        // Kira bildiriminde uygulamayı açmadan ödeme işaretlemek için düğme
+        if (tur != null && tur.startsWith("kira") && daireler != null && daireler.length() > 0) {
+            Intent odendi = new Intent(c, MainActivity.class);
+            odendi.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            odendi.putExtra("eylem", "odendi");
+            odendi.putExtra("daireler", daireler.toString());
+            odendi.putExtra("bildirimId", id);
+            PendingIntent po = PendingIntent.getActivity(c, 5000 + id, odendi,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            b.addAction(new Notification.Action.Builder(null, "Ödendi işaretle", po).build());
+        }
         if (Build.VERSION.SDK_INT < 26) b.setPriority(Notification.PRIORITY_HIGH);
         try {
             nm.notify(id, b.build());

@@ -1,6 +1,12 @@
 package com.elifapartmani;
 
 import android.app.Activity;
+import android.app.KeyguardManager;
+import android.app.NotificationManager;
+import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
+import android.content.SharedPreferences;
+import android.view.View;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -33,6 +39,10 @@ public class MainActivity extends Activity {
     private static final int REQ_NOTIF = 13;
     private static final int REQ_CALL = 14;
     private static final int REQ_TREE = 15;
+    private static final int REQ_LOCK = 16;
+    private String bekleyenEylem;
+    private boolean kilitAcik = false, kilitSoruluyor = false, disariGitti = false;
+    private long arkaPlanZamani = 0;
     private String pendingCall;
 
 
@@ -46,6 +56,7 @@ public class MainActivity extends Activity {
 
         web = new WebView(this);
         setContentView(web);
+        if (kilitGerekli()) web.setVisibility(View.INVISIBLE);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -65,6 +76,7 @@ public class MainActivity extends Activity {
             }
         });
         web.loadUrl(Updater.startUrl(this));
+        eylemAl(getIntent());
 
         Reminders.ensureChannel(this);
         Reminders.scheduleDaily(this);
@@ -80,8 +92,61 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        eylemAl(intent);
+        callJs("window.bildirimEylemiKontrol && window.bildirimEylemiKontrol()");
+    }
+
+    /** Bildirimdeki "Ödendi işaretle" düğmesinden gelen istek */
+    private void eylemAl(Intent i) {
+        if (i == null || !"odendi".equals(i.getStringExtra("eylem"))) return;
+        bekleyenEylem = i.getStringExtra("daireler");
+        int nid = i.getIntExtra("bildirimId", -1);
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null && nid >= 0) nm.cancel(nid);
+        i.removeExtra("eylem");
+    }
+
+    private SharedPreferences ayar() { return getSharedPreferences("uygulama", Context.MODE_PRIVATE); }
+
+    private boolean kilitGerekli() {
+        if (!ayar().getBoolean("kilit", false)) return false;
+        KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        return km != null && km.isDeviceSecure();
+    }
+
+    /** Uygulama kilidi: açılışta ve 1 dakikadan uzun arka planda kaldıktan sonra telefonun kilidi sorulur */
+    private void kilitKontrol() {
+        if (kilitSoruluyor) return;
+        if (!kilitGerekli()) { kilitAcik = true; web.setVisibility(View.VISIBLE); return; }
+        boolean sure = arkaPlanZamani > 0 && System.currentTimeMillis() - arkaPlanZamani > 60000;
+        if (kilitAcik && !sure) { web.setVisibility(View.VISIBLE); return; }
+        KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        Intent i = km.createConfirmDeviceCredentialIntent("Elif Apartmanı", "Devam etmek için telefonunuzun kilidini açın");
+        if (i == null) { kilitAcik = true; web.setVisibility(View.VISIBLE); return; }
+        web.setVisibility(View.INVISIBLE);
+        kilitSoruluyor = true;
+        startActivityForResult(i, REQ_LOCK);
+    }
+
+    @Override
+    public void startActivityForResult(Intent intent, int requestCode, Bundle options) {
+        if (requestCode != REQ_LOCK) disariGitti = true;
+        super.startActivityForResult(intent, requestCode, options);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (!kilitSoruluyor && !disariGitti) arkaPlanZamani = System.currentTimeMillis();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        if (disariGitti) { disariGitti = false; arkaPlanZamani = 0; }
+        kilitKontrol();
         if (web != null) web.evaluateJavascript("window.onAppResume && window.onAppResume()", null);
     }
 
@@ -144,6 +209,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_LOCK) {
+            kilitSoruluyor = false;
+            if (resultCode == RESULT_OK) { kilitAcik = true; arkaPlanZamani = 0; web.setVisibility(View.VISIBLE); }
+            else finish();
+            return;
+        }
         if (requestCode == REQ_EXPORT) {
             boolean ok = false;
             if (resultCode == RESULT_OK && data != null && data.getData() != null && pendingExport != null) {
@@ -458,6 +529,34 @@ public class MainActivity extends Activity {
                 AutoBackup.run(app, true);
                 callJs("window.onBackupFolder && window.onBackupFolder()");
             }).start();
+        }
+
+        @JavascriptInterface
+        public String bekleyenEylem() {
+            String s = bekleyenEylem;
+            bekleyenEylem = null;
+            return s == null ? "" : s;
+        }
+
+        @JavascriptInterface
+        public void setWidget(String json) {
+            ayar().edit().putString("widget", json).apply();
+            ElifWidget.guncelle(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public boolean lockAvailable() {
+            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            return km != null && km.isDeviceSecure();
+        }
+
+        @JavascriptInterface
+        public boolean getLock() { return ayar().getBoolean("kilit", false); }
+
+        @JavascriptInterface
+        public void setLock(boolean acik) {
+            ayar().edit().putBoolean("kilit", acik).apply();
+            if (acik) kilitAcik = true;
         }
 
         @JavascriptInterface
