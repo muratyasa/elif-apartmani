@@ -36,7 +36,7 @@ Kiracı verisi bu depoda YOKTUR ve konmamalıdır (depo herkese açık). Veri ge
 ## Kullanıcı tercihleri
 - Kopyalanacak her şey (bağlantı, metin, numara) mesajda kod bloğu içinde verilir.
 - Elektrik abone no zorunlu değil; telefonun yanında kopyalama düğmesi yok; toplu onay yok.
-- Daire listesinde arama/WhatsApp düğmesi yok (daire sayfasında var); kira ve aidat ayrı satırlarda; sağ sütunda petek rozeti (ısıtıcı simgesi + sayı) ve altında ödeme düğmesi.
+- Daire listesinde arama/WhatsApp düğmesi yok (daire sayfasında var); kira ve aidat ayrı satırlarda; sağ sütunda petek rozeti (gerçekçi petek simgesi + sayı, altında isteğe bağlı "petek" yazısı: Ayarlar → Görünüm, `elif-petek-yazi`) ve altında ödeme düğmesi.
 - Uygulama "gardırop gibi" düzenli olmalı: gereksiz açıklama/tekrar yok, bilgiler hizalı, aranan kolay bulunur.
 - Bildirim ve geçmiş: gün başlıklarıyla gruplu; her tür kendi rengi/ikonu. "İlk yükleme" notları gösterilmez (`odemeNotu`).
 - Üst bant: logo + ad + canlı tarih-saat (`saatGoster`), dönem seçici ikinci satırda.

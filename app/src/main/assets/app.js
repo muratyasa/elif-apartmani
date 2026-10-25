@@ -419,7 +419,7 @@ var IK = {
   kaydet: 'M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z',
   kalem: 'M3 17.3V21h3.8L17.8 9.9 14 6.2 3 17.3zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8L19 8.8 20.7 7z',
   ev: 'M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z',
-  petek: 'M5 5a1 1 0 0 1 2 0v14a1 1 0 0 1-2 0V5zm4-1a1 1 0 0 1 2 0v16a1 1 0 0 1-2 0V4zm4 0a1 1 0 0 1 2 0v16a1 1 0 0 1-2 0V4zm4 1a1 1 0 0 1 2 0v14a1 1 0 0 1-2 0V5zM3 7.2h18v1.6H3V7.2zm0 8h18v1.6H3v-1.6z',
+  petek: 'M4.9 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 4.9 4zM8.3 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 8.3 4zM11.7 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 11.7 4zM15.1 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 15.1 4zM18.5 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 18.5 4zM6.2 6.4h0.8v1.2h-0.8zM6.2 16.4h0.8v1.2h-0.8zM9.6 6.4h0.8v1.2h-0.8zM9.6 16.4h0.8v1.2h-0.8zM13.0 6.4h0.8v1.2h-0.8zM13.0 16.4h0.8v1.2h-0.8zM16.4 6.4h0.8v1.2h-0.8zM16.4 16.4h0.8v1.2h-0.8zM0.8 16.4h2.8v1.2H0.8z M0.6 15.6h1.2v2.8H0.6zM4.2 20.3h1.4v1.4H4.2z M18.2 20.3h1.4v1.4h-1.4z',
   simsek: 'M7 2v11h3v9l7-12h-4l4-8H7z',
   damla: 'M12 2.7C8.5 7 6 10.4 6 14a6 6 0 0 0 12 0c0-3.6-2.5-7-6-11.3z',
   cuzdan: 'M3 6a2 2 0 0 1 2-2h13v3H5v.5h16V20H5a2 2 0 0 1-2-2V6zm14 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'
@@ -599,8 +599,10 @@ function vOzet() {
 }
 
 /* Petek: ısıtıcı simgesi + sayı, satırın en sağında */
+function petekYazili() { try { return localStorage.getItem('elif-petek-yazi') !== '0'; } catch (e) { return true; } }
 function petekRozet(d) {
-  return d.petek ? '<span class="petek-rozet" title="' + d.petek + ' petek" aria-label="' + d.petek + ' petek">' + ikon('petek') + '<b>' + d.petek + '</b></span>' : '';
+  return d.petek ? '<span class="petek-rozet' + (petekYazili() ? ' yazili' : '') + '" aria-label="' + d.petek + ' petek"><span class="pr-ust">' + ikon('petek') + '<b>' + d.petek + '</b></span>' +
+    (petekYazili() ? '<small>petek</small>' : '') + '</span>' : '';
 }
 function kalemSatiri(ad, x) {
   if (x.kod === 'tanimsiz') return '<span class="kalem"><span class="k-ad">' + ad + '</span><span class="k-tutar muted">—</span>' + chip('tanimsiz') + '</span>';
@@ -2574,10 +2576,12 @@ function beyanBildirimi(gun0, son) {
 }
 function ekAyarlarHtml() {
   var v = yaziBoyu(), A = DB.ayarlar;
-  return kilitKartiHtml() + '<section class="card">' + baslik('kalem', 'Yazı boyutu') +
+  return kilitKartiHtml() + '<section class="card">' + baslik('kalem', 'Görünüm') +
     '<div class="seg">' + [[1, 'Normal'], [1.12, 'Büyük'], [1.24, 'Çok büyük']].map(function (x) {
       return '<button type="button" data-act="yazi-boyu" data-v="' + x[0] + '" class="' + (Math.abs(v - x[0]) < 0.01 ? 'on' : '') + '">' + x[1] + '</button>';
-    }).join('') + '</div><p class="note">Yalnız bu telefonu etkiler.</p></section>' +
+    }).join('') + '</div>' +
+    '<label class="check kutu"><input type="checkbox" data-change="petek-yazi"' + (petekYazili() ? ' checked' : '') + '> Petek simgesinin altında “petek” yazsın</label>' +
+    '<p class="note">Yalnız bu telefonu etkiler.</p></section>' +
     '<section class="card">' + baslik('artis', 'Kira artışı ve ilan') +
     '<div class="grid2"><div class="field"><label for="a-tufe">Yıllık TÜFE (%)</label><input id="a-tufe" inputmode="decimal" placeholder="Örn. 33,5" value="' + (+A.tufe ? esc(String(A.tufe).replace('.', ',')) : '') + '"></div>' +
     '<div class="field"><label for="a-ilantel">İlan telefonu</label><input id="a-ilantel" type="tel" value="' + esc(A.ilanTel || '') + '"></div></div>' +
@@ -2684,6 +2688,10 @@ function kilitKartiHtml() {
     (var_ ? '<p class="note">Telefonun kendi kilidi kullanılır. 1 dakikadan uzun kapalı kalınca tekrar sorar.</p>'
       : '<p class="note warn">Bunun için telefonda ekran kilidi (PIN, desen ya da parmak izi) açık olmalı.</p>') + '</section>';
 }
+DEGISIM['petek-yazi'] = function (el) {
+  try { localStorage.setItem('elif-petek-yazi', el.checked ? '1' : '0'); } catch (e) { /* yoksay */ }
+  ciz();
+};
 DEGISIM['kilit'] = function (el) {
   try { BR.setLock(el.checked); } catch (e) { /* yoksay */ }
   toast(el.checked ? 'Uygulama kilidi açıldı' : 'Uygulama kilidi kapatıldı');

@@ -569,3 +569,9 @@ body.buyuk .hap { padding: 10px 8px; }
   .kalemler { font-size: 13px; column-gap: 4px; }
   .kalemler, .kalemler.genis { grid-template-columns: 36px minmax(0, 1fr) 22px; }
 }
+
+.petek-rozet { flex-direction: column; gap: 0; }
+.pr-ust { display: inline-flex; align-items: center; gap: 3px; }
+.petek-rozet svg { width: 18px; height: 18px; }
+.petek-rozet small { font-size: 10.5px; font-weight: 700; line-height: 1.1; letter-spacing: .2px; }
+.petek-rozet.yazili { padding: 4px 6px 3px; }
