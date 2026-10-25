@@ -167,7 +167,7 @@ textarea { min-height: 80px; resize: vertical; }
 
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 16px; }
 .kv dt { color: var(--muted); }
-.kv dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.kv dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: break-word; }
 
 .date-head { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; padding: 12px 0 2px; }
 
@@ -620,3 +620,6 @@ body.buyuk .top .yardim-btn { margin-right: 0; }
 .lejant .dy { width: 38px; height: 38px; }
 .lj-ik { justify-content: flex-start; width: 96px; }
 .lejant.dar .lj-ik { width: 52px; }
+
+/* Kelimeler ortadan bölünmesin, tire ile kesilmesin; sığmayan kelime bütün olarak alt satıra insin */
+body { hyphens: manual; -webkit-hyphens: manual; word-break: normal; overflow-wrap: break-word; }

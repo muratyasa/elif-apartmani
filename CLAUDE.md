@@ -40,5 +40,6 @@ Kiracı verisi bu depoda YOKTUR ve konmamalıdır (depo herkese açık). Veri ge
 - Uygulama "gardırop gibi" düzenli olmalı: gereksiz açıklama/tekrar yok, bilgiler hizalı, aranan kolay bulunur.
 - Bildirim ve geçmiş: gün başlıklarıyla gruplu; her tür kendi rengi/ikonu. "İlk yükleme" notları gösterilmez (`odemeNotu`).
 - Üst bant: logo + ad + canlı tarih-saat (`saatGoster`), ? (Rehber, `REHBER` soru-cevap + "Göster" → `yardim-git`) ve zil; dönem seçici ikinci satırda. Rehberi yeni özellik eklendikçe güncelle.
+- Kelimeler satır sonunda bölünmez (body hyphens: manual, overflow-wrap: break-word); "e‑posta" bölünmeyen tire (U+2011) ile yazılır.
 - Tasarım sade, ikonlar tutarlı ve az; her kart başlığı `baslik(ikon, metin)` ile.
 - İşlemi yapan kişi e-posta değil adla görünür: `senk.js` → `KISI_ADLARI` (e-postanın `epostaIzi` parmak izi → ad). Depo açık olduğu için e-posta yazılmaz. Umut (kullanıcı), Murat (babası), Ömer (kardeşi). Yeni kişi eklenince izi hesaplanıp eklenir.

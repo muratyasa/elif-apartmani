@@ -916,8 +916,8 @@ function vAyarlar() {
         '<p class="note" id="senk-durum">' + senkDurumHtml() + '</p>' +
         '<div class="actions"><button type="button" class="btn ghost" data-act="senk-simdi">Şimdi eşitle</button>' +
         '<button type="button" class="btn ghost" data-act="senk-cikis">Çıkış yap</button></div>'
-      : '<p class="note">Babanız, kardeşiniz ve siz aynı kayıtları görün: kendi e-postanızla giriş yapın.</p>' +
-        '<div class="form"><div class="field"><label for="g-email">E-posta</label><input id="g-email" type="email" autocomplete="email" inputmode="email"></div>' +
+      : '<p class="note">Babanız, kardeşiniz ve siz aynı kayıtları görün: kendi e‑postanızla giriş yapın.</p>' +
+        '<div class="form"><div class="field"><label for="g-email">E‑posta</label><input id="g-email" type="email" autocomplete="email" inputmode="email"></div>' +
         '<div class="field"><label for="g-sifre">Şifre</label><input id="g-sifre" type="password" autocomplete="current-password"></div>' +
         '<button type="button" class="btn block" data-act="senk-giris">Giriş yap</button>' +
         '<button type="button" class="link" data-act="senk-unuttum">Şifremi unuttum</button></div>') + '</section>';
@@ -1904,7 +1904,7 @@ var EYLEM = {
   'csv': csvAktar,
   'senk-giris': function (el) {
     var e = $('#g-email').value.trim(), p = $('#g-sifre').value;
-    if (!e || !p) { toast('E-posta ve şifreyi girin'); return; }
+    if (!e || !p) { toast('E‑posta ve şifreyi girin'); return; }
     el.disabled = true; el.textContent = 'Giriş yapılıyor…';
     girisYap(e, p).then(function (sonuc) {
       SENK.zaman = new Date(); SENK.hata = '';
@@ -1917,8 +1917,8 @@ var EYLEM = {
   },
   'senk-unuttum': function () {
     var e = $('#g-email').value.trim();
-    if (!e) { toast('Önce e-posta adresinizi yazın'); return; }
-    sifreSifirla(e).then(function () { toast('Şifre yenileme e-postası gönderildi'); }, function (err) { toast(err.message); });
+    if (!e) { toast('Önce e‑posta adresinizi yazın'); return; }
+    sifreSifirla(e).then(function () { toast('Şifre yenileme e‑postası gönderildi'); }, function (err) { toast(err.message); });
   },
   'senk-simdi': function () { toast('Eşitleniyor…'); esitle('elle').then(function () { toast(SENK.hata ? SENK.hata : 'Eşitlendi'); ciz(); }); },
   'senk-cikis': function () {
@@ -2738,10 +2738,10 @@ var REHBER = [
     ['Bildirim gelmiyor, ne yapmalıyım?', 'Ayarlar → Bildirimler → “Deneme bildirimi gönder”. Gelmezse telefon ayarlarında Elif Apartmanı için bildirim iznini ve pil tasarrufu kısıtlamasını kontrol edin.', 'sekme:ayarlar']
   ] },
   { k: 'Ortak kullanım ve yedek', ik: 'bulut', l: [
-    ['Üç telefon nasıl aynı kayıtları görüyor?', 'Her telefonda kendi e-postanızla giriş yaptığınızda kayıtlar Firebase üzerinden eşitlenir. Bir telefonda girilen ödeme birkaç saniye içinde diğerlerinde görünür.', 'sekme:ayarlar'],
-    ['Şifremi unuttum.', 'Ayarlar → Ortak kullanım → “Şifremi unuttum”. E-postanıza sıfırlama bağlantısı gelir.', 'sekme:ayarlar'],
+    ['Üç telefon nasıl aynı kayıtları görüyor?', 'Her telefonda kendi e‑postanızla giriş yaptığınızda kayıtlar Firebase üzerinden eşitlenir. Bir telefonda girilen ödeme birkaç saniye içinde diğerlerinde görünür.', 'sekme:ayarlar'],
+    ['Şifremi unuttum.', 'Ayarlar → Ortak kullanım → “Şifremi unuttum”. E‑postanıza sıfırlama bağlantısı gelir.', 'sekme:ayarlar'],
     ['Yedek nasıl alınır?', 'Uygulama her gün kendiliğinden yedek alır (Ayarlar → Otomatik yedek). Ayda bir de Ayarlar → “Drive’a yedekle” ile en güvenli kopyayı alın.', 'sekme:ayarlar'],
-    ['Telefon değişirse ne olur?', 'Yeni telefona uygulamayı kurup aynı e-postayla giriş yapın; bütün kayıtlar geri gelir. Gerekirse Ayarlar → “Yedekten yükle”.', 'sekme:ayarlar'],
+    ['Telefon değişirse ne olur?', 'Yeni telefona uygulamayı kurup aynı e‑postayla giriş yapın; bütün kayıtlar geri gelir. Gerekirse Ayarlar → “Yedekten yükle”.', 'sekme:ayarlar'],
     ['Kayıtların altında kimin adı yazıyor?', 'İşlemi yapan kişinin adı: Umut, Murat ya da Ömer.', '']
   ] },
   { k: 'Görünüm ve telefon', ik: 'kalem', l: [
@@ -2794,7 +2794,7 @@ function yardimSayfasi() {
 function yardimListesiHtml() {
   var q = (S.yAra || '').trim().toLocaleLowerCase('tr'), h = '', bulundu = 0;
   REHBER.forEach(function (b, bi) {
-    var l = b.l.filter(function (x) { return !q || (x[0] + ' ' + x[1] + ' ' + b.k).toLocaleLowerCase('tr').indexOf(q) >= 0; });
+    var l = b.l.filter(function (x) { return !q || (x[0] + ' ' + x[1] + ' ' + b.k).replace(/\u2011/g, '-').toLocaleLowerCase('tr').indexOf(q.replace(/\u2011/g, '-')) >= 0; });
     if (!l.length) return;
     bulundu += l.length;
     h += '<section class="card rehber">' + baslik(b.ik, b.k) + l.map(function (x, i) {

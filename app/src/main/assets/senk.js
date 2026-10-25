@@ -1,7 +1,7 @@
 'use strict';
 /* Elif Apartmanı – ortak kayıt (Firebase eşitleme)
    Kayıtlar Firestore'da tutulur: apartman/elif/{daireler|odemeler|genel}/{id}
-   Her belge: json (kaydın kendisi), kim (giren e-posta), silindi, zaman (sunucu saati).
+   Her belge: json (kaydın kendisi), kim (giren e‑posta), silindi, zaman (sunucu saati).
    İstekleri telefon tarafı yapar (Android.http), sayfa sadece JSON hazırlar. */
 
 var FB = {
@@ -37,12 +37,12 @@ function senkAcik() { return !!(oturum() && BR && BR.http); }
 function hataMetni(r) {
   var j = jsonMu(r.body), m = j && j.error && (j.error.message || j.error.status) || '';
   var T = {
-    EMAIL_NOT_FOUND: 'Bu e-posta ile kayıtlı hesap yok.',
+    EMAIL_NOT_FOUND: 'Bu e‑posta ile kayıtlı hesap yok.',
     INVALID_PASSWORD: 'Şifre yanlış.',
-    INVALID_LOGIN_CREDENTIALS: 'E-posta ya da şifre yanlış.',
+    INVALID_LOGIN_CREDENTIALS: 'E‑posta ya da şifre yanlış.',
     USER_DISABLED: 'Bu hesap kapatılmış.',
     TOO_MANY_ATTEMPTS_TRY_LATER: 'Çok fazla deneme yapıldı, biraz sonra tekrar deneyin.',
-    INVALID_EMAIL: 'E-posta adresi geçersiz.',
+    INVALID_EMAIL: 'E‑posta adresi geçersiz.',
     PERMISSION_DENIED: 'Bu hesabın ortak kayıtlara erişim izni yok.'
   };
   for (var k in T) if (String(m).indexOf(k) === 0) return T[k];
@@ -273,7 +273,7 @@ function senkDurumHtml() {
   if (SENK.zaman) return 'Son eşitleme: ' + pad(SENK.zaman.getHours()) + ':' + pad(SENK.zaman.getMinutes());
   return 'Eşitleniyor…';
 }
-/* İşlemi yapanın e-postası yerine adı görünür (depo herkese açık: e-postalar değil, parmak izleri yazılı) */
+/* İşlemi yapanın e‑postası yerine adı görünür (depo herkese açık: e‑postalar değil, parmak izleri yazılı) */
 var KISI_ADLARI = { '18m771t': 'Umut', '1x526px': 'Umut', '16e1x7u': 'Murat', '4ch6hl': 'Ömer' };
 function epostaIzi(e) {
   e = String(e || '').trim().toLowerCase();
