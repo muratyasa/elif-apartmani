@@ -419,6 +419,7 @@ var IK = {
   kaydet: 'M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z',
   kalem: 'M3 17.3V21h3.8L17.8 9.9 14 6.2 3 17.3zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8L19 8.8 20.7 7z',
   ev: 'M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z',
+  petek: 'M5 5a1 1 0 0 1 2 0v14a1 1 0 0 1-2 0V5zm4-1a1 1 0 0 1 2 0v16a1 1 0 0 1-2 0V4zm4 0a1 1 0 0 1 2 0v16a1 1 0 0 1-2 0V4zm4 1a1 1 0 0 1 2 0v14a1 1 0 0 1-2 0V5zM3 7.2h18v1.6H3V7.2zm0 8h18v1.6H3v-1.6z',
   simsek: 'M7 2v11h3v9l7-12h-4l4-8H7z',
   damla: 'M12 2.7C8.5 7 6 10.4 6 14a6 6 0 0 0 12 0c0-3.6-2.5-7-6-11.3z',
   cuzdan: 'M3 6a2 2 0 0 1 2-2h13v3H5v.5h16V20H5a2 2 0 0 1-2-2V6zm14 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'
@@ -597,6 +598,10 @@ function vOzet() {
   return h;
 }
 
+/* Petek: ısıtıcı simgesi + sayı, satırın en sağında */
+function petekRozet(d) {
+  return d.petek ? '<span class="petek-rozet" title="' + d.petek + ' petek" aria-label="' + d.petek + ' petek">' + ikon('petek') + '<b>' + d.petek + '</b></span>' : '';
+}
 function kalemSatiri(ad, x) {
   if (x.kod === 'tanimsiz') return '<span class="kalem"><span class="k-ad">' + ad + '</span><span class="k-tutar muted">—</span>' + chip('tanimsiz') + '</span>';
   if (x.beklenen <= 0 && x.odenen <= 0) return '<span class="kalem"><span class="k-ad">' + ad + '</span><span class="k-tutar muted">—</span><span class="k-not">Kiraya dahil</span></span>';
@@ -611,7 +616,7 @@ function daireSatiri(d, ay) {
   return '<div class="row-wrap"><button type="button" class="row daire-row" data-act="daire-ac" data-id="' + d.id + '">' +
     '<span class="no">' + esc(d.no) + '</span>' +
     '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' + alt + '</span>' +
-    '<span class="petek-sut">' + (d.petek ? '<b>' + d.petek + '</b><small>petek</small>' : '') + '</span></button>' + (hizli || '<span class="paid-yer"></span>') + '</div>';
+    '</button><div class="sag-sut">' + petekRozet(d) + hizli + '</div></div>';
 }
 function daireFiltreli() {
   var ay = S.ay, q = S.arama.trim().toLocaleLowerCase('tr');
@@ -689,11 +694,11 @@ function vKomur() {
     else if (k && k.kalan > 0 && k.odenen > 0) ode = '<button type="button" class="paid-btn dy-kismi" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kalan kömür ödemesini gir">₺</button>';
     else if (k && k.kalan > 0) ode = '<button type="button" class="paid-btn" data-act="komur-ode" data-id="' + d.id + '" aria-label="Daire ' + esc(d.no) + ' kömür ödemesi gir">₺</button>';
     else if (k && k.beklenen > 0) ode = '<span class="dy dy-ok" aria-label="Kömür tamamen ödendi">' + ikon('onay') + '</span>';
-    else ode = '<span class="paid-yer"></span>';
+    else ode = '';
     h += '<div class="row-wrap"><button type="button" class="row daire-row" data-act="komur-kg" data-id="' + d.id + '">' +
       '<span class="no">' + esc(d.no) + '</span>' +
       '<span class="row-main"><span class="row-title">' + esc(d.bos ? bosAdi(d) : (d.kiraci || 'Kiracı girilmemiş')) + '</span>' + alt + '</span>' +
-      '<span class="petek-sut">' + (d.petek ? '<b>' + d.petek + '</b><small>petek</small>' : '') + '</span></button>' + ode + '</div>';
+      '</button><div class="sag-sut">' + petekRozet(d) + ode + '</div></div>';
   });
   return h + '</div></section>';
 }

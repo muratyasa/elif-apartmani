@@ -550,3 +550,22 @@ body.buyuk .hap { padding: 10px 8px; }
 .k-tutar { white-space: nowrap; }
 .toast { left: 0; right: 0; margin: 0 auto; transform: none; width: max-content; max-width: calc(100% - 32px); text-align: left; }
 .toast > span { flex: 1; min-width: 0; }
+
+/* Daire ve kömür listesi: sağ sütun = petek rozeti + ödeme düğmesi (üst üste, hiç taşmaz) */
+.row-wrap > .row.daire-row { min-width: 0; }
+.sag-sut { flex: none; width: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; align-self: stretch; padding: 10px 0; }
+.petek-rozet { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px 3px 5px; border-radius: 9px; background: #FDE8DC; color: #C2410C; }
+.petek-rozet svg { width: 17px; height: 17px; flex: none; }
+.petek-rozet b { font-size: 15px; font-variant-numeric: tabular-nums; line-height: 1; }
+.sag-sut .paid-btn, .sag-sut .dy { width: 38px; height: 38px; font-size: 19px; }
+.sag-sut .dy svg { width: 19px; height: 19px; }
+/* Kira / aidat satırları: tutar sütunu esnek, sağa hizalı; rozet en sonda */
+.kalemler, .kalemler.genis { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.k-tutar { text-align: right; }
+@container (max-width: 178px) {
+  .kalemler, .kalemler.genis { grid-template-columns: 40px minmax(0, 1fr) 24px; }
+}
+@container (max-width: 150px) {
+  .kalemler { font-size: 13px; column-gap: 4px; }
+  .kalemler, .kalemler.genis { grid-template-columns: 36px minmax(0, 1fr) 22px; }
+}
