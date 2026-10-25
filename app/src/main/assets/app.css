@@ -523,3 +523,30 @@ button.rapor-satir:first-child { border-top: 0; }
 .dk-kutu.iyi { background: var(--ok-soft); color: var(--ok); } .dk-kutu.kotu { background: var(--bad-soft); color: var(--bad); }
 .btn.wa-tam { background: #1FA855; color: #fff; }
 .gd-kat:not(.on) { color: var(--ink); }
+
+/* Makbuz, öneri, boş daire, ilan */
+.toast-btn.ek { background: #1FA855; color: #fff; border-color: #1FA855; }
+.kv dd.oneri { color: #6B3FA0; font-weight: 800; } .kv dd.oneri small { font-weight: 600; opacity: .8; }
+.bk-lacivert { --bk: #1E3A8A; --bk-soft: #E0E7FF; }
+.satir-form { display: flex; gap: 8px; align-items: center; } .satir-form input { flex: 1; min-width: 0; }
+.ilan-metin { min-height: 220px; font-size: 16px; line-height: 1.45; }
+.toast-btn.ek { border-radius: 8px; padding: 7px 10px; text-transform: none; letter-spacing: 0; }
+
+.artis-tutar { display: block; margin-top: 3px; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.artis-tutar b { color: #6B3FA0; } .ok-isaret { color: var(--muted); }
+.sub { flex-wrap: wrap; row-gap: 2px; }
+/* Dar alan (büyük yazı ya da küçük ekran): rozetler yalnız ikon olur, hizalar korunur */
+.row-main { container-type: inline-size; }
+@container (max-width: 178px) {
+  .kalemler .chip { font-size: 0; padding: 4px; gap: 0; width: 24px; height: 24px; justify-content: center; }
+  .kalemler .chip .chip-ik { display: block; width: 15px; height: 15px; }
+  .kalemler { grid-template-columns: 40px 80px 24px; }
+  .kalemler.genis { grid-template-columns: 46px 80px 24px; }
+}
+body.buyuk .petek-sut { width: 34px; }
+body.buyuk .petek-sut b { font-size: 17px; } body.buyuk .petek-sut small { font-size: 11px; }
+body.buyuk .daire-row .no { min-width: 36px; height: 36px; }
+body.buyuk .hap { padding: 10px 8px; }
+.k-tutar { white-space: nowrap; }
+.toast { left: 0; right: 0; margin: 0 auto; transform: none; width: max-content; max-width: calc(100% - 32px); text-align: left; }
+.toast > span { flex: 1; min-width: 0; }
