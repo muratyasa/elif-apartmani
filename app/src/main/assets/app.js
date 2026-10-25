@@ -161,7 +161,7 @@ function kiraTutari(d, ym) {
   return t;
 }
 /* Yıllık kira artış günü: giriş (veya sözleşme başlangıcı) tarihinin yıl dönümü */
-function artisBaz(d) { return d.sozlesmeBas || d.girisTarihi || ''; }
+function artisBaz(d) { return d.girisTarihi || d.sozlesmeBas || ''; }
 function sonrakiArtis(d) {
   var baz = artisBaz(d);
   if (!baz || d.bos) return '';
@@ -337,9 +337,6 @@ function hatirlatmaListesi() {
     }
     var art = sonrakiArtis(d);
     if (art && !artisYapildiMi(d, art)) [30, 7, 0].forEach(function (g) { ekle(gunEkle(art, -g), 'artis', g, d, TL(d.kira) + ' → artış ' + tarihAdi(art)); });
-    if (!d.bos && d.sozlesmeBit) {
-      [30, 7, 0].forEach(function (g) { ekle(gunEkle(d.sozlesmeBit, -g), 'sozlesme', g, d, tarihAdi(d.sozlesmeBit)); });
-    }
   });
   return Object.keys(kovalar).sort().map(function (key) {
     var b = kovalar[key], n = b.ids.length, baslik, ust;
@@ -1130,15 +1127,7 @@ function daireSayfasi(id) {
         (d.elkAbone ? kopyaSatiri('Elektrik', d.elkAbone) : '<dt>Elektrik</dt>' + bos()) +
         (d.suAbone ? kopyaSatiri('Su', d.suAbone) : '<dt>Su</dt>' + bos()) +
         '</dl></section>';
-      var ekler = (d.telefon2 ? kopyaSatiri('Yakını / 2. telefon', d.telefon2, true) : '') +
-        (d.tc ? kopyaSatiri('TC kimlik no', d.tc) : '') +
-        (d.sozlesmeBas ? '<dt>Sözleşme başlangıcı</dt><dd>' + esc(tarihAdi(d.sozlesmeBas)) + '</dd>' : '') +
-        (d.sozlesmeBit ? '<dt>Sözleşme bitişi</dt><dd' + (sozKalan !== null && sozKalan <= 30 ? ' style="color:var(--bad)"' : '') + '>' + esc(tarihAdi(d.sozlesmeBit)) +
-          (sozKalan !== null && sozKalan >= 0 && sozKalan <= 60 ? ' (' + kalanGunMetni(sozKalan) + ')' : '') + '</dd>' : '') +
-        (d.kefilAd ? '<dt>Kefil</dt><dd>' + esc(d.kefilAd) + '</dd>' : '') +
-        (d.kefilTel ? kopyaSatiri('Kefil telefonu', d.kefilTel, true) : '') +
-        (d.elkTesisat ? kopyaSatiri('Elektrik tesisat no', d.elkTesisat) : '');
-      if (!d.bos && (ekler || d.kiraciNot)) h += '<section class="card">' + baslik('bilgi', 'Diğer bilgiler') + '<dl class="kv">' + ekler + '</dl>' + (d.kiraciNot ? '<p class="note">' + esc(d.kiraciNot) + '</p>' : '') + '</section>';
+      if (!d.bos && d.kiraciNot) h += '<section class="card">' + baslik('kalem', 'Kiracı notu') + '<p class="note">' + esc(d.kiraciNot) + '</p></section>';
       if (d.not) h += '<section class="card">' + baslik('kalem', 'Not') + '<p class="note">' + esc(d.not) + '</p></section>';
       h += '<div class="actions">' +
         (!d.bos ? '<button type="button" class="btn ghost" data-act="kiraci-cikis" data-id="' + d.id + '">Kiracı çıktı</button>' : '') +
@@ -1204,8 +1193,7 @@ function daireFormu(id, yeniKiraciMi) {
         '<label class="check"><input id="d-ortak" type="checkbox"' + (x.ortak ? ' checked' : '') + '> Kiraya verilmiyor (ortak alan, aile vb.)</label>' +
         '<div id="kiraci-alanlari" class="form">' +
         alan('d-kiraci', 'Ad soyad', x.kiraci, ' autocomplete="off"') +
-        '<div class="grid2">' + alan('d-tel', 'Telefon', x.telefon, ' type="tel"') + alan('d-tel2', 'Yakını / 2. telefon', x.telefon2, ' type="tel"') + '</div>' +
-        alan('d-tc', 'TC kimlik no', x.tc, ' inputmode="numeric" maxlength="11"') +
+        alan('d-tel', 'Telefon', x.telefon, ' type="tel"') +
         '<div class="grid2">' + alan('d-bas', 'Giriş tarihi', yeniKiraci ? bugun() : (x.girisTarihi || (x.baslangic ? x.baslangic + '-01' : '')), ' type="date"') +
         alan('d-depozito', 'Depozito (₺)', x.depozito || '', ' inputmode="decimal" placeholder="Bilinmiyorsa boş bırakın"') + '</div>' +
         '<div class="field"><label for="d-depdurum">Depozito durumu</label><select id="d-depdurum">' +
@@ -1213,9 +1201,7 @@ function daireFormu(id, yeniKiraciMi) {
           var cur = yeniKiraci ? '' : depozitoDurumu(x);
           return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
         }).join('') + '</select></div>' +
-        '<div class="grid2">' + alan('d-sozbas', 'Sözleşme başlangıcı', x.sozlesmeBas, ' type="date"') + alan('d-sozbit', 'Sözleşme bitişi', x.sozlesmeBit, ' type="date"') + '</div>' +
-        '<p class="note">Sözleşme bitişinden 30 gün ve 7 gün önce bildirim gelir.</p>' +
-        '<div class="grid2">' + alan('d-kefil', 'Kefil adı', x.kefilAd) + alan('d-kefiltel', 'Kefil telefonu', x.kefilTel, ' type="tel"') + '</div>' +
+
         '<div class="field"><label for="d-kiracinot">Kiracı notu</label><textarea id="d-kiracinot">' + esc(x.kiraciNot || '') + '</textarea></div>' +
         '</div>' +
         '<h3 class="section-title">Daire</h3>' +
@@ -1225,8 +1211,7 @@ function daireFormu(id, yeniKiraciMi) {
         alan('d-petek', 'Petek sayısı', x.petek || '', ' type="number" inputmode="numeric" min="0" max="50"') + '</div>' +
         '<div class="grid2">' + alan('d-aidatyaz', 'Özel normal aidat (₺)', x.aidatYaz === undefined || x.aidatYaz === null ? '' : x.aidatYaz, ' inputmode="decimal" placeholder="Boşsa genel: ' + esc(DB.ayarlar.aidat.yaz) + '"') +
         alan('d-aidatkis', 'Özel kış aidatı (₺)', x.aidatKis === undefined || x.aidatKis === null ? '' : x.aidatKis, ' inputmode="decimal" placeholder="Boşsa genel: ' + esc(DB.ayarlar.aidat.kis) + '"') + '</div>' +
-        '<div class="grid2">' + alan('d-abone', 'Elektrik abone no', x.elkAbone, ' inputmode="numeric"') + alan('d-tesisat', 'Elektrik tesisat no', x.elkTesisat, ' inputmode="numeric"') + '</div>' +
-        alan('d-su', 'Su abone no', x.suAbone, ' inputmode="numeric"') +
+        '<div class="grid2">' + alan('d-abone', 'Elektrik abone no', x.elkAbone, ' inputmode="numeric"') + alan('d-su', 'Su abone no', x.suAbone, ' inputmode="numeric"') + '</div>' +
         '<div class="field"><label for="d-not">Daire notu</label><textarea id="d-not">' + esc(x.not || '') + '</textarea></div>' +
         '<button type="button" class="btn block" data-act="daire-kaydet" data-id="' + (d ? d.id : '') + '">Kaydet</button>' +
         (d ? '<button type="button" class="btn danger block" data-act="daire-sil" data-id="' + d.id + '">Daireyi sil</button>' : '') +
@@ -1254,22 +1239,18 @@ function daireKaydet(id) {
   var cakisan = DB.daireler.some(function (x) { return x.id !== id && String(x.no).toLocaleLowerCase('tr') === no.toLocaleLowerCase('tr'); });
   if (cakisan) { toast('Bu numarada başka bir daire var'); return; }
   if ($('#d-ortak').checked) $('#d-bos').checked = true;
-  var tc = $('#d-tc').value.replace(/\s/g, '');
-  if (tc && !/^\d{11}$/.test(tc)) { toast('TC kimlik no 11 haneli olmalı'); return; }
-  var sozBas = $('#d-sozbas').value, sozBit = $('#d-sozbit').value;
-  if (sozBas && sozBit && sozBit < sozBas) { toast('Sözleşme bitişi başlangıçtan önce olamaz'); return; }
   var mevcut = id ? daireBul(id) : null, bos = $('#d-bos').checked;
   var veri = {
     no: no, odemeGunu: Math.min(31, Math.max(1, parseInt($('#d-gun').value, 10) || 1)), kira: sayi($('#d-kira').value),
-    elkAbone: $('#d-abone').value.trim(), elkTesisat: $('#d-tesisat').value.trim(), suAbone: $('#d-su').value.trim(), not: $('#d-not').value.trim(), bos: bos, ortak: $('#d-ortak').checked,
+    elkAbone: $('#d-abone').value.trim(), suAbone: $('#d-su').value.trim(), not: $('#d-not').value.trim(), bos: bos, ortak: $('#d-ortak').checked,
     petek: parseInt($('#d-petek').value, 10) || 0,
     aidatYaz: $('#d-aidatyaz').value.trim() === '' ? null : sayi($('#d-aidatyaz').value),
     aidatKis: $('#d-aidatkis').value.trim() === '' ? null : sayi($('#d-aidatkis').value)
   };
   var kiraciVeri = {
-    kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(), telefon2: $('#d-tel2').value.trim(), tc: tc,
-    girisTarihi: $('#d-bas').value || '', baslangic: ($('#d-bas').value || '').slice(0, 7), depozito: sayi($('#d-depozito').value), depozitoDurum: $('#d-depdurum').value || (sayi($('#d-depozito').value) > 0 ? 'alindi' : ''), depozitoAlindi: $('#d-depdurum').value === 'alindi' || sayi($('#d-depozito').value) > 0, sozlesmeBas: sozBas, sozlesmeBit: sozBit,
-    kefilAd: $('#d-kefil').value.trim(), kefilTel: $('#d-kefiltel').value.trim(), kiraciNot: $('#d-kiracinot').value.trim()
+    kiraci: $('#d-kiraci').value.trim(), telefon: $('#d-tel').value.trim(), 
+    girisTarihi: $('#d-bas').value || '', baslangic: ($('#d-bas').value || '').slice(0, 7), depozito: sayi($('#d-depozito').value), depozitoDurum: $('#d-depdurum').value || (sayi($('#d-depozito').value) > 0 ? 'alindi' : ''), depozitoAlindi: $('#d-depdurum').value === 'alindi' || sayi($('#d-depozito').value) > 0,
+    kiraciNot: $('#d-kiracinot').value.trim()
   };
   if (!bos) {
     var eski = (mevcut && mevcut.eskiKiracilar) || [];
