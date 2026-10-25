@@ -24,7 +24,7 @@ Kiracı verisi bu depoda YOKTUR ve konmamalıdır (depo herkese açık). Veri ge
 ## Veri kuralları
 - Giderler (`DB.giderler`) ortak `genel` belgesinde eşitlenir (yeni Firestore koleksiyonu açmamak için); eski sürüm gidersiz yazarsa yereldekiler korunur.
 - Ay sonu özeti: her ayın 20'sinde `ayOzetiBildirimi` (tür `ozet`).
-- native_api 5 (zengin kutucuk: üst bant, durum, ilerleme çubuğu, 3 kutu, uyarı satırı); native_api 4: bildirimde "Ödendi işaretle" (Intent extra `eylem=odendi` → `Android.bekleyenEylem()` → `odemeIsaretSayfasi`), ana ekran kutucuğu `ElifWidget` (`Android.setWidget(json)`, `widgetGuncelle`), uygulama kilidi (KeyguardManager, `Android.setLock/getLock/lockAvailable`).
+- native_api 6 (zengin kutucuk: üst bant, durum, ilerleme çubuğu, 3 kutu, uyarılar renkli baloncuklarda: depozito/arıza/artış); native_api 4: bildirimde "Ödendi işaretle" (Intent extra `eylem=odendi` → `Android.bekleyenEylem()` → `odemeIsaretSayfasi`), ana ekran kutucuğu `ElifWidget` (`Android.setWidget(json)`, `widgetGuncelle`), uygulama kilidi (KeyguardManager, `Android.setLock/getLock/lockAvailable`).
 - Yazı boyutu: her telefonda `localStorage['elif-yazi']` → body zoom + `body.buyuk`; dar satırlarda rozetler container query ile ikona döner.
 - TÜFE (`ayarlar.tufe`) → `oneriKira`; ilan telefonu `ayarlar.ilanTel`; boş daire başlangıcı `bosBas`; Mart'ta `beyanBildirimi`.
 - Tutar girişinde `sayi()` "2.400" gibi binlik noktayı tanır.

@@ -90,10 +90,34 @@
         </LinearLayout>
 
         <LinearLayout android:id="@+id/w_alt_satir" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="9dp" android:orientation="horizontal" android:gravity="center_vertical">
-            <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/ic_w_bilgi" />
-            <TextView android:id="@+id/w_alt" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginStart="5dp" android:textColor="#FF15202D" android:textSize="12sp" android:maxLines="2" />
+            android:layout_marginTop="8dp" android:orientation="horizontal">
+            <LinearLayout android:id="@+id/w_u1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                 android:orientation="horizontal" android:gravity="center"
+                android:paddingStart="6dp" android:paddingEnd="6dp" android:paddingTop="6dp" android:paddingBottom="6dp"
+                android:background="@drawable/widget_hap_sari">
+                <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/ic_w_kilit" />
+                <TextView android:id="@+id/w_u1_yazi" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp" android:textColor="#FF8F6A00" android:textSize="12sp" android:textStyle="bold" android:maxLines="1"
+                    android:autoSizeTextType="uniform" android:autoSizeMinTextSize="9sp" android:autoSizeMaxTextSize="12sp" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/w_u2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="6dp" android:orientation="horizontal" android:gravity="center"
+                android:paddingStart="6dp" android:paddingEnd="6dp" android:paddingTop="6dp" android:paddingBottom="6dp"
+                android:background="@drawable/widget_hap_gri">
+                <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/ic_w_arac" />
+                <TextView android:id="@+id/w_u2_yazi" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp" android:textColor="#FF3E4A59" android:textSize="12sp" android:textStyle="bold" android:maxLines="1"
+                    android:autoSizeTextType="uniform" android:autoSizeMinTextSize="9sp" android:autoSizeMaxTextSize="12sp" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/w_u3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="6dp" android:orientation="horizontal" android:gravity="center"
+                android:paddingStart="6dp" android:paddingEnd="6dp" android:paddingTop="6dp" android:paddingBottom="6dp"
+                android:background="@drawable/widget_hap_mor">
+                <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/ic_w_artis" />
+                <TextView android:id="@+id/w_u3_yazi" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp" android:textColor="#FF6B3FA0" android:textSize="12sp" android:textStyle="bold" android:maxLines="1"
+                    android:autoSizeTextType="uniform" android:autoSizeMinTextSize="9sp" android:autoSizeMaxTextSize="12sp" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

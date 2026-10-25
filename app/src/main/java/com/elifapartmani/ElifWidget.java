@@ -59,9 +59,18 @@ public class ElifWidget extends AppWidgetProvider {
         v.setTextColor(R.id.w_k2_deger, renk(o.optString("kalanRenk"), 0xFF15202D));
         v.setTextViewText(R.id.w_k3_deger, o.optString("komur", "–"));
         v.setTextViewText(R.id.w_k3_etiket, o.optString("komurEtiket", "Kömür"));
-        String alt = o.optString("alt", "");
-        v.setTextViewText(R.id.w_alt, alt);
-        v.setViewVisibility(R.id.w_alt_satir, alt.isEmpty() ? android.view.View.GONE : android.view.View.VISIBLE);
+        // Uyarı baloncukları: depozito, arıza, kira artışı (boş olan gizlenir)
+        int[] kutu = {R.id.w_u1, R.id.w_u2, R.id.w_u3};
+        int[] yazi = {R.id.w_u1_yazi, R.id.w_u2_yazi, R.id.w_u3_yazi};
+        String[] anahtar = {"depozito", "ariza", "artis"};
+        boolean herhangi = false;
+        for (int i = 0; i < 3; i++) {
+            String t = o.optString(anahtar[i], "");
+            v.setTextViewText(yazi[i], t);
+            v.setViewVisibility(kutu[i], t.isEmpty() ? android.view.View.GONE : android.view.View.VISIBLE);
+            if (!t.isEmpty()) herhangi = true;
+        }
+        v.setViewVisibility(R.id.w_alt_satir, herhangi ? android.view.View.VISIBLE : android.view.View.GONE);
         Intent ac = new Intent(c, MainActivity.class);
         ac.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pi = PendingIntent.getActivity(c, 7000, ac, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

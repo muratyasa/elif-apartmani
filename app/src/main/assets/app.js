@@ -2650,14 +2650,10 @@ function widgetGuncelle() {
   var bekleyen = top - odeyen, yuzde = bek ? Math.round(toplanan / bek * 100) : 0;
   var sez = komurSezonBul(sezonu(bugun())), kKalan = 0, kBorclu = 0;
   if (sez) DB.daireler.forEach(function (d) { var k = komurDurum(d, sez); if (k && k.kalan > 0) { kKalan += k.kalan; kBorclu++; } });
-  var uyari = [];
   var depYok = daireler().filter(function (d) { return depozitoDurumu(d) === 'alinmadi'; }).length;
-  if (depYok) uyari.push(depYok + ' depozito alınmadı');
   var isler = typeof acikIsler === 'function' ? acikIsler().length : 0;
-  if (isler) uyari.push(isler + ' arıza bekliyor');
   var art = daireler().map(function (d) { var t = sonrakiArtis(d); return t && !artisYapildiMi(d, t) ? t : null; })
     .filter(function (t) { return t && gunFark(bugun(), t) <= 30; }).sort();
-  if (art.length) uyari.push('Kira artışı ' + tarihAdi(art[0], false) + (art.length > 1 ? ' (' + art.length + ' daire)' : ''));
   var gun = +bugun().slice(8), vade = gun <= 15 ? cur : ayEkle(cur, 1);
   var n = new Date(), o = {
     ay: ayAdi(cur) + ' · sonraki ödeme 15 ' + AYLAR[+vade.slice(5) - 1],
@@ -2670,7 +2666,9 @@ function widgetGuncelle() {
     kira: odeyen + ' / ' + top, kiraEtiket: 'Ödeyen daire',
     kalan: kalan ? TL(kalan) : 'Yok', kalanRenk: kalan ? '#B3362A' : '#1B7A4C',
     komur: kKalan ? TL(kKalan) : 'Tamam', komurEtiket: kBorclu ? 'Kömür · ' + kBorclu + ' daire' : 'Kömür',
-    alt: uyari.join(' · ')
+    depozito: depYok ? depYok + ' depozito' : '',
+    ariza: isler ? isler + ' arıza' : '',
+    artis: art.length ? 'Artış ' + art[0].slice(8).replace(/^0/, '') + ' ' + AYK[+art[0].slice(5, 7) - 1] : ''
   };
   var anahtar = JSON.stringify(o).replace(/"saat":"[^"]*"/, '');
   if (anahtar === sonWidget) return;
