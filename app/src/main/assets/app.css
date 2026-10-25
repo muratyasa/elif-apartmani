@@ -457,3 +457,8 @@ main { padding-bottom: 104px; }
 .top > .periodnav { margin-top: 10px; width: 100%; justify-content: space-between; background: rgba(255, 255, 255, .13); }
 .top > .periodnav span { flex: 1; font-size: 16px; }
 .top > .periodnav button { width: 48px; height: 40px; }
+
+/* Daire formu: iki seçenek yan yana */
+.check-ikili { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.check.kutu { margin: 0; padding: 12px; min-height: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 16px; gap: 10px; }
+.check.kutu:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }

@@ -1189,8 +1189,9 @@ function daireFormu(id, yeniKiraciMi) {
       }
       return '<div class="form">' +
         '<h3 class="section-title">Kiracı</h3>' +
-        '<label class="check"><input id="d-bos" type="checkbox"' + (x.bos ? ' checked' : '') + '> Daire şu an boş</label>' +
-        '<label class="check"><input id="d-ortak" type="checkbox"' + (x.ortak ? ' checked' : '') + '> Kiraya verilmiyor (ortak alan, aile vb.)</label>' +
+        '<div class="check-ikili">' +
+        '<label class="check kutu"><input id="d-bos" type="checkbox"' + (x.bos ? ' checked' : '') + '> Daire boş</label>' +
+        '<label class="check kutu"><input id="d-ortak" type="checkbox"' + (x.ortak ? ' checked' : '') + '> Kiraya verilmiyor</label></div>' +
         '<div id="kiraci-alanlari" class="form">' +
         alan('d-kiraci', 'Ad soyad', x.kiraci, ' autocomplete="off"') +
         alan('d-tel', 'Telefon', x.telefon, ' type="tel"') +
