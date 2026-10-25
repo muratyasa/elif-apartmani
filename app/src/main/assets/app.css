@@ -462,3 +462,34 @@ main { padding-bottom: 104px; }
 .check-ikili { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .check.kutu { margin: 0; padding: 12px; min-height: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 16px; gap: 10px; }
 .check.kutu:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+
+/* Kart başlıkları: renkli ikon kutusu (bildirim renkleriyle aynı) */
+.card-title { gap: 10px; }
+.ct-kutu { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; --ck: var(--accent); --ck-soft: var(--accent-soft); background: var(--ck-soft); }
+.ct-kutu .ct-ik { color: var(--ck); width: 17px; height: 17px; }
+.ck-mor { --ck: #6B3FA0; --ck-soft: #ECE3F7; }
+.ck-sari { --ck: #8F6A00; --ck-soft: #FBF0C9; }
+.ck-turuncu { --ck: #C2410C; --ck-soft: #FDE8DC; }
+.ck-kirmizi { --ck: var(--bad); --ck-soft: var(--bad-soft); }
+.ck-yesil { --ck: #0F766E; --ck-soft: #D9F1EE; }
+.ck-gri { --ck: var(--idle); --ck-soft: var(--idle-soft); }
+.card-title > span:last-child { color: var(--ink); opacity: .78; }
+
+/* Petek sütunu daha okunur */
+.petek-sut b { font-size: 19px; }
+.petek-sut small { font-size: 12px; font-weight: 600; color: var(--accent); opacity: 1; }
+
+/* Geçmiş: belirgin düğmeler ve daire seçici */
+.gc-linkler { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hap { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; padding: 11px 10px; font-weight: 700; font-size: 15px; }
+.hap svg { width: 19px; height: 19px; }
+.hap.mavi { background: var(--accent); color: #fff; }
+.hap.gri { background: var(--idle-soft); color: var(--ink); }
+.daire-secici { position: relative; display: flex; align-items: center; border: 2px solid var(--accent); border-radius: 12px; background: var(--surface); }
+.daire-secici.secili { background: var(--accent-soft); }
+.daire-secici select { flex: 1; border: 0; background: transparent; padding: 12px 40px 12px 44px; font-size: 16px; font-weight: 600; color: var(--ink); appearance: none; -webkit-appearance: none; min-height: 0; margin: 0; }
+.ds-ik { position: absolute; left: 12px; width: 22px; height: 22px; color: var(--accent); pointer-events: none; }
+.ds-ok { position: absolute; right: 14px; color: var(--accent); font-size: 18px; pointer-events: none; }
+.rapor-kim { font-size: 15px; color: var(--muted); margin-top: -4px; }
+button.rapor-satir { width: 100%; background: none; border: 0; border-top: 1px solid var(--line); text-align: left; color: inherit; }
+button.rapor-satir:first-child { border-top: 0; }

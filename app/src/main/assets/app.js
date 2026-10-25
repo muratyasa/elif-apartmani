@@ -417,7 +417,8 @@ var IK = {
 function ikon(ad, sinif) {
   return '<svg class="' + (sinif || 'ik') + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + IK[ad] + '"/></svg>';
 }
-function baslik(ad, metin) { return '<h2 class="card-title">' + ikon(ad, 'ct-ik') + '<span>' + metin + '</span></h2>'; }
+var BASLIK_RENK = { artis: 'mor', kilit: 'sari', alev: 'turuncu', uyari: 'kirmizi', onay: 'yesil', arac: 'gri', kalem: 'gri', saat: 'gri', bilgi: 'turuncu', kaydet: 'yesil', bulut: 'mavi', zil: 'mavi' };
+function baslik(ad, metin) { return '<h2 class="card-title"><span class="ct-kutu ck-' + (BASLIK_RENK[ad] || 'mavi') + '">' + ikon(ad, 'ct-ik') + '</span><span>' + metin + '</span></h2>'; }
 var CHIP_IK = { odendi: 'onay', gecikti: 'unlem', kismi: 'yarim', bekliyor: 'saat' };
 function chip(kod) { return '<span class="chip ' + kod + '">' + (CHIP_IK[kod] ? ikon(CHIP_IK[kod], 'chip-ik') : '') + DURUM[kod] + '</span>'; }
 
@@ -848,6 +849,13 @@ function odemeSatiri(o, daireGoster) {
     (meta ? '<span class="row-meta">' + esc(meta) + '</span>' : '') + '</span>' +
     '<span class="row-end"><span class="amt">' + TL(o.tutar) + '</span></span></button>';
 }
+function daireSecici(act, deger, hepsiMetni) {
+  return '<label class="daire-secici' + (deger ? ' secili' : '') + '">' + ikon('kisi', 'ds-ik') +
+    '<select data-change="' + act + '" aria-label="Daire seç"><option value="">' + hepsiMetni + '</option>' +
+    daireler().map(function (d) {
+      return '<option value="' + d.id + '"' + (deger === d.id ? ' selected' : '') + '>Daire ' + esc(d.no) + (d.kiraci ? ' · ' + esc(d.kiraci) : d.bos ? ' · ' + esc(bosAdi(d)) : '') + '</option>';
+    }).join('') + '</select><span class="ds-ok" aria-hidden="true">▾</span></label>';
+}
 function vGecmis() {
   var l = DB.odemeler.filter(function (o) {
     if (S.gTur !== 'hepsi' && o.tur !== S.gTur) return false;
@@ -857,15 +865,12 @@ function vGecmis() {
   var toplam = l.reduce(function (t, o) { return t + (+o.tutar || 0); }, 0);
   var h = '<section class="card gc-ozet">' +
     '<div class="gc-toplam"><span><b>' + TL(toplam) + '</b><small>' + l.length + ' ödeme</small></span>' +
-    '<span class="gc-linkler"><button type="button" class="link" data-act="rapor">' + ikon('grafik', 'ct-ik') + 'Rapor</button>' +
-    '<button type="button" class="link" data-act="silinenler">' + ikon('saat', 'ct-ik') + 'Silinenler' + (DB.silinenler.length ? ' (' + DB.silinenler.length + ')' : '') + '</button></span></div>' +
+    '</div><div class="gc-linkler"><button type="button" class="hap mavi" data-act="rapor">' + ikon('grafik') + 'Rapor ve grafik</button>' +
+    '<button type="button" class="hap gri" data-act="silinenler">' + ikon('saat') + 'Silinenler' + (DB.silinenler.length ? ' (' + DB.silinenler.length + ')' : '') + '</button></div>' +
     '<div class="filters">' + [['hepsi', 'Hepsi'], ['kira', 'Kira'], ['aidat', 'Aidat'], ['komur', 'Kömür'], ['diger', 'Diğer']].map(function (x) {
       return '<button type="button" class="filter' + (S.gTur === x[0] ? ' on' : '') + '" data-act="g-tur-sec" data-v="' + x[0] + '">' + x[1] + '</button>';
     }).join('') + '</div>' +
-    '<select id="g-daire" data-change="g-daire" aria-label="Daire seç"><option value="">Bütün daireler</option>' +
-    daireler().map(function (d) {
-      return '<option value="' + d.id + '"' + (S.gDaire === d.id ? ' selected' : '') + '>Daire ' + esc(d.no) + (d.kiraci ? ' · ' + esc(d.kiraci) : '') + '</option>';
-    }).join('') + '</select></section>';
+    daireSecici('g-daire', S.gDaire, 'Bütün daireler') + '</section>';
   if (!l.length) return h + '<p class="empty">Bu seçime uyan ödeme yok.</p>';
   var gunler = [], gun = null;
   l.slice(0, 400).forEach(function (o) {
@@ -1915,6 +1920,7 @@ var DEGISIM = {
   'g-tur': function (el) { S.gTur = el.value; ciz(); },
   'g-tur-sec': function (el) { S.gTur = el.dataset.v; ciz(); },
   'g-daire': function (el) { S.gDaire = el.value; ciz(); },
+  'rapor-daire': function (el) { S.raporDaire = el.value; sayfaCiz(); },
   'a-gecikme': function (el) { var v = +el.value; DB.ayarlar.gecikme = v > 0; if (v) DB.ayarlar.gecikmeSiklik = v; kaydet(); ciz(); },
   'a-saat': function (el) { DB.ayarlar.saat = +el.value; kaydet(); toast('Bildirimler her gün ' + pad(el.value) + ':00 civarında gelir'); }
 };
@@ -2031,9 +2037,12 @@ function raporSayfasi(yil) {
     baslik: function () { return 'Gelir raporu'; },
     ciz: function () {
       var y = String(S.raporYil), aylik = [], kira = 0, aidat = 0, komur = 0, diger = 0, daire = {};
+      var secili = S.raporDaire ? daireBul(S.raporDaire) : null;
+      if (!secili) S.raporDaire = '';
       for (var m = 0; m < 12; m++) aylik.push(0);
       DB.odemeler.forEach(function (o) {
         if (!o.tarih || o.tarih.slice(0, 4) !== y) return;
+        if (secili && o.daireId !== secili.id) return;
         var t = +o.tutar || 0, ay = +o.tarih.slice(5, 7) - 1;
         if (o.tur === 'kira') { kira += t; aylik[ay] += t; daire[o.daireId] = (daire[o.daireId] || 0) + t; }
         else if (o.tur === 'aidat') aidat += t;
@@ -2042,14 +2051,16 @@ function raporSayfasi(yil) {
       });
       var h = '<div class="yil-nav"><button type="button" class="icon-btn" data-act="rapor-yil" data-v="-1" aria-label="Önceki yıl">‹</button>' +
         '<b>' + y + '</b><button type="button" class="icon-btn" data-act="rapor-yil" data-v="1" aria-label="Sonraki yıl">›</button></div>';
-      h += '<section class="card">' + baslik('grafik', y + ' kira geliri') +
+      h += daireSecici('rapor-daire', S.raporDaire, 'Bütün daireler (genel)');
+      h += '<section class="card">' + baslik('grafik', (secili ? 'Daire ' + esc(secili.no) + ' · ' : '') + y + ' kira geliri') +
+        (secili ? '<div class="rapor-kim">' + esc(secili.kiraci || bosAdi(secili)) + '</div>' : '') +
         '<div class="big">' + TL(kira) + '</div>' +
-        '<p class="note">Ödeme tarihine göre o yıl içinde tahsil edilen kiralar. Kira geliri beyannamesi için bu toplam kullanılır.</p>' +
         grafikHtml(aylik) + '</section>';
       h += '<section class="card">' + baslik('para', 'Diğer tahsilatlar') + '<dl class="kv">' +
         '<dt>Aidat</dt><dd>' + TL(aidat) + '</dd><dt>Kömür</dt><dd>' + TL(komur) + '</dd>' +
         (diger ? '<dt>Diğer</dt><dd>' + TL(diger) + '</dd>' : '') + '</dl>' +
-        '<p class="note">Aidat ve kömür bina giderleri için toplanır, kira geliri sayılmaz.</p></section>';
+        '</section>';
+      if (secili) return h;
       var satirlar = daireler().filter(function (d) { return daire[d.id]; });
       h += '<section class="card">' + baslik('bina', 'Daire daire kira geliri');
       if (!satirlar.length) h += '<p class="empty">' + y + ' yılında kira ödemesi kaydı yok.</p>';
@@ -2057,8 +2068,8 @@ function raporSayfasi(yil) {
         var enCok = Math.max.apply(null, satirlar.map(function (d) { return daire[d.id]; }));
         h += '<div class="rapor-liste">' + satirlar.map(function (d) {
           var v = daire[d.id];
-          return '<div class="rapor-satir"><span class="no">' + esc(d.no) + '</span><span class="row-main"><span class="row-title">' + esc(d.kiraci || bosAdi(d)) + '</span>' +
-            '<span class="mini-bar"><i style="width:' + Math.max(2, Math.round(v / enCok * 100)) + '%"></i></span></span><span class="amt">' + TL(v) + '</span></div>';
+          return '<button type="button" class="rapor-satir" data-act="rapor-daire-sec" data-id="' + d.id + '"><span class="no">' + esc(d.no) + '</span><span class="row-main"><span class="row-title">' + esc(d.kiraci || bosAdi(d)) + '</span>' +
+            '<span class="mini-bar"><i style="width:' + Math.max(2, Math.round(v / enCok * 100)) + '%"></i></span></span><span class="amt">' + TL(v) + '</span></button>';
         }).join('') + '</div>';
       }
       h += '</section><button type="button" class="btn ghost block" data-act="rapor-csv">Excel için dışa aktar</button>';
@@ -2234,8 +2245,9 @@ function geriGetir(id) {
 /* ---------- Olaylar ---------- */
 Object.assign(EYLEM, {
   'wa': function (el) { whatsappAc(daireBul(el.dataset.id)); },
-  'rapor': function () { raporSayfasi(); },
+  'rapor': function () { S.raporDaire = S.tab === 'gecmis' ? S.gDaire : ''; raporSayfasi(); },
   'rapor-yil': function (el) { S.raporYil += +el.dataset.v; sayfaCiz(); },
+  'rapor-daire-sec': function (el) { S.raporDaire = el.dataset.id; sayfaCiz(); },
   'rapor-csv': raporCsv,
   'isler': function () { islerSayfasi(); },
   'is-yeni': function (el) { var top = YIGIN[YIGIN.length - 1]; isFormu(null, el.dataset.daire || (top && top.daireId) || ''); },
