@@ -2640,21 +2640,39 @@ function odemeIsaretSayfasi(ids) {
 var sonWidget = '';
 function widgetGuncelle() {
   if (!BR || !BR.setWidget || !DB.daireler.length) return;
-  var cur = buAy(), bekleyen = 0, geciken = 0, kalan = 0, toplanan = 0;
+  var cur = buAy(), top = 0, odeyen = 0, geciken = 0, kalan = 0, toplanan = 0, bek = 0;
   daireler().forEach(function (d) {
     var k = kiraDurum(d, cur);
     if (k.kod === 'yok' || k.kod === 'tanimsiz') return;
-    toplanan += Math.min(k.odenen, k.beklenen);
-    if (k.kalan > 0) { bekleyen++; kalan += k.kalan; if (k.kod === 'gecikti') geciken++; }
+    top++; bek += k.beklenen; toplanan += Math.min(k.odenen, k.beklenen);
+    if (k.kalan > 0) { kalan += k.kalan; if (k.kod === 'gecikti') geciken++; } else odeyen++;
   });
+  var bekleyen = top - odeyen, yuzde = bek ? Math.round(toplanan / bek * 100) : 0;
+  var sez = komurSezonBul(sezonu(bugun())), kKalan = 0, kBorclu = 0;
+  if (sez) DB.daireler.forEach(function (d) { var k = komurDurum(d, sez); if (k && k.kalan > 0) { kKalan += k.kalan; kBorclu++; } });
+  var uyari = [];
+  var depYok = daireler().filter(function (d) { return depozitoDurumu(d) === 'alinmadi'; }).length;
+  if (depYok) uyari.push(depYok + ' depozito alınmadı');
+  var isler = typeof acikIsler === 'function' ? acikIsler().length : 0;
+  if (isler) uyari.push(isler + ' arıza bekliyor');
+  var art = daireler().map(function (d) { var t = sonrakiArtis(d); return t && !artisYapildiMi(d, t) ? t : null; })
+    .filter(function (t) { return t && gunFark(bugun(), t) <= 30; }).sort();
+  if (art.length) uyari.push('Kira artışı ' + tarihAdi(art[0], false) + (art.length > 1 ? ' (' + art.length + ' daire)' : ''));
+  var gun = +bugun().slice(8), vade = gun <= 15 ? cur : ayEkle(cur, 1);
   var n = new Date(), o = {
-    ust: 'Elif Apartmanı · ' + AYLAR[+cur.slice(5) - 1],
-    buyuk: !bekleyen ? 'Herkes ödedi ✓' : geciken ? geciken + ' daire gecikti' : bekleyen + ' daire bekleniyor',
-    alt: bekleyen ? 'Kalan ' + TL(kalan) + ' · toplanan ' + TL(toplanan) : 'Toplanan ' + TL(toplanan),
+    ay: ayAdi(cur) + ' · sonraki ödeme 15 ' + AYLAR[+vade.slice(5) - 1],
+    saat: pad(n.getHours()) + ':' + pad(n.getMinutes()),
+    buyuk: !bekleyen ? 'Herkes ödedi' : geciken ? geciken + ' daire gecikti' : bekleyen + ' daire bekleniyor',
     renk: !bekleyen ? '#1B7A4C' : geciken ? '#B3362A' : '#1D5B8F',
-    saat: pad(n.getHours()) + ':' + pad(n.getMinutes())
+    ikon: !bekleyen ? 'ok' : geciken ? 'uyari' : 'saat',
+    yuzde: yuzde,
+    bar: 'Toplanan ' + TL(toplanan) + ' / ' + TL(bek),
+    kira: odeyen + ' / ' + top, kiraEtiket: 'Ödeyen daire',
+    kalan: kalan ? TL(kalan) : 'Yok', kalanRenk: kalan ? '#B3362A' : '#1B7A4C',
+    komur: kKalan ? TL(kKalan) : 'Tamam', komurEtiket: kBorclu ? 'Kömür · ' + kBorclu + ' daire' : 'Kömür',
+    alt: uyari.join(' · ')
   };
-  var anahtar = o.ust + o.buyuk + o.alt;
+  var anahtar = JSON.stringify(o).replace(/"saat":"[^"]*"/, '');
   if (anahtar === sonWidget) return;
   sonWidget = anahtar;
   try { BR.setWidget(JSON.stringify(o)); } catch (e) { /* yoksay */ }

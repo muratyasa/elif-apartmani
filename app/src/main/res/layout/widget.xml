@@ -4,49 +4,96 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center_vertical"
-    android:padding="14dp"
     android:background="@drawable/widget_bg">
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <TextView
-            android:id="@+id/w_ust"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:text="Elif Apartmanı"
-            android:textColor="#5A6777"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:maxLines="1" />
-        <TextView
-            android:id="@+id/w_saat"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#8A96A5"
-            android:textSize="11sp" />
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical"
+        android:paddingStart="12dp" android:paddingEnd="14dp" android:paddingTop="10dp" android:paddingBottom="10dp"
+        android:background="@drawable/widget_ust_bg">
+        <ImageView
+            android:layout_width="32dp" android:layout_height="32dp" android:padding="6dp"
+            android:background="@drawable/widget_logo_bg" android:src="@drawable/ic_w_bina" />
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="10dp" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Elif Apartmanı" android:textColor="#FFFFFFFF" android:textSize="15sp" android:textStyle="bold" android:maxLines="1" />
+            <TextView android:id="@+id/w_ay" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="" android:textColor="#CCFFFFFF" android:textSize="12sp" android:maxLines="1" />
+        </LinearLayout>
+        <TextView android:id="@+id/w_saat" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#B3FFFFFF" android:textSize="11sp" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/w_buyuk"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Uygulamayı açın"
-        android:textColor="#1D5B8F"
-        android:textSize="21sp"
-        android:textStyle="bold"
-        android:maxLines="2" />
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingTop="10dp" android:paddingBottom="12dp">
 
-    <TextView
-        android:id="@+id/w_alt"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:textColor="#15202D"
-        android:textSize="14sp"
-        android:maxLines="2" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageView android:id="@+id/w_durum_ik" android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_w_ok" />
+            <TextView android:id="@+id/w_buyuk" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="8dp" android:text="Uygulamayı açın" android:textColor="#FF1D5B8F" android:textSize="19sp" android:textStyle="bold" android:maxLines="1" />
+            <TextView android:id="@+id/w_yuzde" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textColor="#FF15202D" android:textSize="15sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <ProgressBar android:id="@+id/w_bar" style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="8dp" android:layout_marginTop="8dp"
+            android:max="100" android:progress="0" android:progressDrawable="@drawable/widget_bar" />
+        <TextView android:id="@+id/w_bar_yazi" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:textColor="#FF5A6777" android:textSize="12sp" android:maxLines="1" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            
+            android:orientation="vertical" android:padding="8dp" android:background="@drawable/widget_kutu_bg">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                <ImageView android:id="@+id/w_k1_ik" android:layout_width="15dp" android:layout_height="15dp" android:src="@drawable/ic_w_para" />
+                <TextView android:id="@+id/w_k1_etiket" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp" android:text="Kira" android:textColor="#FF5A6777" android:textSize="11sp" android:maxLines="1" />
+            </LinearLayout>
+            <TextView android:id="@+id/w_k1_deger" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="3dp" android:text="–" android:textColor="#FF15202D" android:textSize="15sp" android:textStyle="bold"
+                android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="10sp" android:autoSizeMaxTextSize="15sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical" android:padding="8dp" android:background="@drawable/widget_kutu_bg">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                <ImageView android:id="@+id/w_k2_ik" android:layout_width="15dp" android:layout_height="15dp" android:src="@drawable/ic_w_cuzdan" />
+                <TextView android:id="@+id/w_k2_etiket" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp" android:text="Kalan" android:textColor="#FF5A6777" android:textSize="11sp" android:maxLines="1" />
+            </LinearLayout>
+            <TextView android:id="@+id/w_k2_deger" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="3dp" android:text="–" android:textColor="#FF15202D" android:textSize="15sp" android:textStyle="bold"
+                android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="10sp" android:autoSizeMaxTextSize="15sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical" android:padding="8dp" android:background="@drawable/widget_kutu_bg">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                <ImageView android:id="@+id/w_k3_ik" android:layout_width="15dp" android:layout_height="15dp" android:src="@drawable/ic_w_alev" />
+                <TextView android:id="@+id/w_k3_etiket" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp" android:text="Kömür" android:textColor="#FF5A6777" android:textSize="11sp" android:maxLines="1" />
+            </LinearLayout>
+            <TextView android:id="@+id/w_k3_deger" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="3dp" android:text="–" android:textColor="#FF15202D" android:textSize="15sp" android:textStyle="bold"
+                android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="10sp" android:autoSizeMaxTextSize="15sp" />
+        </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/w_alt_satir" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="9dp" android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageView android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/ic_w_bilgi" />
+            <TextView android:id="@+id/w_alt" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="5dp" android:textColor="#FF15202D" android:textSize="12sp" android:maxLines="2" />
+        </LinearLayout>
+    </LinearLayout>
 </LinearLayout>
