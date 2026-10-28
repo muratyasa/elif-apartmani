@@ -22,9 +22,9 @@ public class PaylasProvider extends ContentProvider {
     private File file(Uri uri) throws FileNotFoundException {
         String name = uri.getLastPathSegment();
         if (name == null || name.contains("/") || name.contains("..")) throw new FileNotFoundException();
-        File f = new File(new File(getContext().getCacheDir(), "paylas"), name);
-        if (!f.exists()) throw new FileNotFoundException();
-        return f;
+        File dir = new File(getContext().getCacheDir(), name.startsWith("k_") ? "kamera" : "paylas");
+        dir.mkdirs();
+        return new File(dir, name);
     }
 
     @Override
@@ -34,7 +34,12 @@ public class PaylasProvider extends ContentProvider {
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
-        return ParcelFileDescriptor.open(file(uri), ParcelFileDescriptor.MODE_READ_ONLY);
+        File f = file(uri);
+        if (mode != null && mode.contains("w")) {
+            return ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_WRITE | ParcelFileDescriptor.MODE_CREATE | ParcelFileDescriptor.MODE_TRUNCATE);
+        }
+        if (!f.exists()) throw new FileNotFoundException();
+        return ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY);
     }
 
     @Override
@@ -42,6 +47,7 @@ public class PaylasProvider extends ContentProvider {
         MatrixCursor c = new MatrixCursor(new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE});
         try {
             File f = file(uri);
+            if (!f.exists()) return c;
             c.addRow(new Object[]{f.getName(), f.length()});
         } catch (FileNotFoundException ignored) {
         }
@@ -51,6 +57,8 @@ public class PaylasProvider extends ContentProvider {
     @Override
     public String getType(Uri uri) {
         String n = uri.getLastPathSegment();
+        if (n != null && n.endsWith(".jpg")) return "image/jpeg";
+        if (n != null && n.endsWith(".txt")) return "text/plain";
         return n != null && n.endsWith(".csv") ? "text/csv" : "application/json";
     }
 

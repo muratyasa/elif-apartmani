@@ -17,6 +17,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -40,6 +42,9 @@ public class MainActivity extends Activity {
     private static final int REQ_CALL = 14;
     private static final int REQ_TREE = 15;
     private static final int REQ_LOCK = 16;
+    private static final int REQ_FOTO = 17;
+    private ValueCallback<Uri[]> fotoGeri;
+    private Uri kameraUri;
     private String bekleyenEylem;
     private boolean kilitAcik = false, kilitSoruluyor = false, disariGitti = false;
     private long arkaPlanZamani = 0;
@@ -75,6 +80,33 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        // Fotoğraf ekleme: kamera ya da galeri
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView w, ValueCallback<Uri[]> cb, FileChooserParams params) {
+                if (fotoGeri != null) fotoGeri.onReceiveValue(null);
+                fotoGeri = cb;
+                try {
+                    Intent galeri = new Intent(Intent.ACTION_GET_CONTENT);
+                    galeri.addCategory(Intent.CATEGORY_OPENABLE);
+                    galeri.setType("image/*");
+                    galeri.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                    kameraUri = PaylasProvider.uriFor("k_" + System.currentTimeMillis() + ".jpg");
+                    Intent kamera = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+                    kamera.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, kameraUri);
+                    kamera.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    Intent secici = Intent.createChooser(galeri, "Fotoğraf ekle");
+                    if (kamera.resolveActivity(getPackageManager()) != null) {
+                        secici.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{kamera});
+                    }
+                    startActivityForResult(secici, REQ_FOTO);
+                    return true;
+                } catch (Exception e) {
+                    fotoGeri = null;
+                    return false;
+                }
+            }
+        });
         web.loadUrl(Updater.startUrl(this));
         eylemAl(getIntent());
 
@@ -106,6 +138,13 @@ public class MainActivity extends Activity {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null && nid >= 0) nm.cancel(nid);
         i.removeExtra("eylem");
+    }
+
+    private void temizleKamera() {
+        java.io.File[] l = new java.io.File(getCacheDir(), "kamera").listFiles();
+        if (l == null) return;
+        long sinir = System.currentTimeMillis() - 3600000;
+        for (java.io.File f : l) if (f.lastModified() < sinir) f.delete();
     }
 
     private SharedPreferences ayar() { return getSharedPreferences("uygulama", Context.MODE_PRIVATE); }
@@ -209,6 +248,24 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_FOTO) {
+            Uri[] sonuc = null;
+            if (resultCode == RESULT_OK) {
+                if (data != null && data.getClipData() != null) {
+                    int n = data.getClipData().getItemCount();
+                    sonuc = new Uri[n];
+                    for (int i = 0; i < n; i++) sonuc[i] = data.getClipData().getItemAt(i).getUri();
+                } else if (data != null && data.getData() != null) {
+                    sonuc = new Uri[]{data.getData()};
+                } else if (kameraUri != null) {
+                    java.io.File f = new java.io.File(new java.io.File(getCacheDir(), "kamera"), kameraUri.getLastPathSegment());
+                    if (f.exists() && f.length() > 0) sonuc = new Uri[]{kameraUri};
+                }
+            }
+            if (fotoGeri != null) fotoGeri.onReceiveValue(sonuc);
+            fotoGeri = null;
+            return;
+        }
         if (requestCode == REQ_LOCK) {
             kilitSoruluyor = false;
             if (resultCode == RESULT_OK) { kilitAcik = true; arkaPlanZamani = 0; web.setVisibility(View.VISIBLE); }
@@ -529,6 +586,78 @@ public class MainActivity extends Activity {
                 AutoBackup.run(app, true);
                 callJs("window.onBackupFolder && window.onBackupFolder()");
             }).start();
+        }
+
+        /** Fotoğraflar telefonun uygulama klasöründe saklanır (files/foto) */
+        @JavascriptInterface
+        public boolean fotoKaydet(String ad, String base64) {
+            if (ad == null || ad.contains("/") || ad.contains("..")) return false;
+            try {
+                java.io.File dir = new java.io.File(getFilesDir(), "foto");
+                dir.mkdirs();
+                byte[] b = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
+                try (OutputStream os = new java.io.FileOutputStream(new java.io.File(dir, ad))) { os.write(b); }
+                temizleKamera();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public String fotoKlasor() {
+            return "file://" + new java.io.File(getFilesDir(), "foto").getAbsolutePath() + "/";
+        }
+
+        @JavascriptInterface
+        public boolean fotoVar(String ad) {
+            if (ad == null || ad.contains("/")) return false;
+            return new java.io.File(new java.io.File(getFilesDir(), "foto"), ad).exists();
+        }
+
+        @JavascriptInterface
+        public void fotoSil(String ad) {
+            if (ad == null || ad.contains("/") || ad.contains("..")) return;
+            new java.io.File(new java.io.File(getFilesDir(), "foto"), ad).delete();
+        }
+
+        /** Fotoğrafları (ve açıklama metnini) WhatsApp vb. ile paylaşır */
+        @JavascriptInterface
+        public void fotoPaylas(String adlarJson, String metin) {
+            runOnUiThread(() -> {
+                try {
+                    org.json.JSONArray a = new org.json.JSONArray(adlarJson);
+                    java.io.File dir = new java.io.File(getCacheDir(), "paylas");
+                    dir.mkdirs();
+                    java.io.File[] eski = dir.listFiles();
+                    if (eski != null) for (java.io.File f : eski) f.delete();
+                    java.util.ArrayList<Uri> uris = new java.util.ArrayList<>();
+                    java.io.File kaynak = new java.io.File(getFilesDir(), "foto");
+                    for (int i = 0; i < a.length(); i++) {
+                        String ad = a.getString(i);
+                        java.io.File f = new java.io.File(kaynak, ad);
+                        if (ad.contains("/") || !f.exists()) continue;
+                        java.io.File h = new java.io.File(dir, ad);
+                        try (java.io.InputStream in = new java.io.FileInputStream(f); OutputStream out = new java.io.FileOutputStream(h)) {
+                            byte[] buf = new byte[16384]; int n;
+                            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                        }
+                        uris.add(PaylasProvider.uriFor(ad));
+                    }
+                    Intent i;
+                    if (uris.isEmpty()) {
+                        i = new Intent(Intent.ACTION_SEND); i.setType("text/plain");
+                    } else if (uris.size() == 1) {
+                        i = new Intent(Intent.ACTION_SEND); i.setType("image/jpeg"); i.putExtra(Intent.EXTRA_STREAM, uris.get(0));
+                    } else {
+                        i = new Intent(Intent.ACTION_SEND_MULTIPLE); i.setType("image/jpeg"); i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                    }
+                    if (metin != null && !metin.isEmpty()) i.putExtra(Intent.EXTRA_TEXT, metin);
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(i, "Paylaş"));
+                } catch (Exception ignored) {
+                }
+            });
         }
 
         @JavascriptInterface

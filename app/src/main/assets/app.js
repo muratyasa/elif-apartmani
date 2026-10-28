@@ -419,6 +419,10 @@ var IK = {
   kaydet: 'M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z',
   kalem: 'M3 17.3V21h3.8L17.8 9.9 14 6.2 3 17.3zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8L19 8.8 20.7 7z',
   ev: 'M12 3 2 12h3v8h5v-6h4v6h5v-8h3L12 3z',
+  kamera: 'M9 3 7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  anahtar: 'M7 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm5.6-4A6 6 0 1 0 12.6 14H17v3h3v-3h2v-4h-9.4z',
+  giris: 'M10 17l5-5-5-5v3H3v4h7v3zm9 2h-6v2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-6v2h6v14z',
+  cikis: 'M14 17l5-5-5-5v3H8v4h6v3zM5 5h6V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6v-2H5V5z',
   petek: 'M4.9 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 4.9 4zM8.3 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 8.3 4zM11.7 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 11.7 4zM15.1 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 15.1 4zM18.5 4a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-2.6 0V5.3A1.3 1.3 0 0 1 18.5 4zM6.2 6.4h0.8v1.2h-0.8zM6.2 16.4h0.8v1.2h-0.8zM9.6 6.4h0.8v1.2h-0.8zM9.6 16.4h0.8v1.2h-0.8zM13.0 6.4h0.8v1.2h-0.8zM13.0 16.4h0.8v1.2h-0.8zM16.4 6.4h0.8v1.2h-0.8zM16.4 16.4h0.8v1.2h-0.8zM0.8 16.4h2.8v1.2H0.8z M0.6 15.6h1.2v2.8H0.6zM4.2 20.3h1.4v1.4H4.2z M18.2 20.3h1.4v1.4h-1.4z',
   simsek: 'M7 2v11h3v9l7-12h-4l4-8H7z',
   damla: 'M12 2.7C8.5 7 6 10.4 6 14a6 6 0 0 0 12 0c0-3.6-2.5-7-6-11.3z',
@@ -427,7 +431,7 @@ var IK = {
 function ikon(ad, sinif) {
   return '<svg class="' + (sinif || 'ik') + '" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="' + IK[ad] + '"/></svg>';
 }
-var BASLIK_RENK = { artis: 'mor', kilit: 'sari', alev: 'turuncu', uyari: 'kirmizi', onay: 'yesil', arac: 'gri', kalem: 'gri', saat: 'gri', bilgi: 'turuncu', kaydet: 'yesil', bulut: 'mavi', zil: 'mavi' };
+var BASLIK_RENK = { artis: 'mor', kilit: 'sari', alev: 'turuncu', uyari: 'kirmizi', onay: 'yesil', arac: 'gri', kalem: 'gri', saat: 'gri', bilgi: 'turuncu', kaydet: 'yesil', bulut: 'mavi', zil: 'mavi', anahtar: 'yesil' };
 function baslik(ad, metin) { return '<h2 class="card-title"><span class="ct-kutu ck-' + (BASLIK_RENK[ad] || 'mavi') + '">' + ikon(ad, 'ct-ik') + '</span><span>' + metin + '</span></h2>'; }
 var CHIP_IK = { odendi: 'onay', gecikti: 'unlem', kismi: 'yarim', bekliyor: 'saat' };
 function chip(kod) { return '<span class="chip ' + kod + '">' + (CHIP_IK[kod] ? ikon(CHIP_IK[kod], 'chip-ik') : '') + DURUM[kod] + '</span>'; }
@@ -1184,6 +1188,7 @@ function daireSayfasi(id) {
       h += '</section>';
       var dIs = DB.notlar.filter(function (n) { return n.daireId === d.id; }).sort(function (a, b) {
         return (a.durum === 'yapildi') - (b.durum === 'yapildi') || (a.tarih < b.tarih ? 1 : -1); });
+      h += teslimKarti(d);
       h += '<section class="card"><div class="card-head">' + baslik('arac', 'Arıza ve işler') +
         '<button type="button" class="link" data-act="is-yeni" data-daire="' + d.id + '">+ Ekle</button></div>' +
         (dIs.length ? dIs.slice(0, 10).map(function (n) { return isSatiri(n, false); }).join('') : '<p class="empty">Kayıtlı arıza yok.</p>') + '</section>';
@@ -1431,7 +1436,8 @@ function kiraciCikisKaydet(id) {
   });
   ['kiraci', 'telefon', 'telefon2', 'tc', 'baslangic', 'girisTarihi', 'sozlesmeBas', 'sozlesmeBit', 'kefilAd', 'kefilTel', 'kiraciNot'].forEach(function (k) { d[k] = ''; });
   d.depozito = 0; d.depozitoAlindi = false; d.depozitoDurum = ''; d.bos = true;
-  kaydet(); sayfaKapat(); yenile(); toast('Kiracı çıkışı kaydedildi');
+  kaydet(); sayfaKapat(); yenile();
+  toast('Kiracı çıkışı kaydedildi', null, { metin: 'Çıkış teslimi', fn: function () { teslimFormu(id, 'cikis'); } });
 }
 
 /* ---------- Bildirim geçmişi ---------- */
@@ -2185,7 +2191,7 @@ function isSatiri(n, daireGoster) {
     '<button type="button" class="row-main is-metin" data-act="is-duzenle" data-id="' + n.id + '">' +
     '<span class="row-title">' + esc(n.metin) + '</span>' +
     '<span class="row-sub">' + (daireGoster ? (d ? 'Daire ' + esc(d.no) : 'Genel') + ' · ' : '') + esc(tarihAdi(n.tarih)) +
-    (n.kim ? ' · ' + esc(kisaKim(n.kim)) : '') + (yap && n.yapildiTarih ? ' · yapıldı ' + esc(tarihAdi(n.yapildiTarih, false)) : '') + '</span></button></div>';
+    (n.kim ? ' · ' + esc(kisaKim(n.kim)) : '') + ((n.fotolar || []).length ? ' · ' + n.fotolar.length + ' fotoğraf' : '') + (yap && n.yapildiTarih ? ' · yapıldı ' + esc(tarihAdi(n.yapildiTarih, false)) : '') + '</span></button></div>';
 }
 function islerKarti() {
   var l = acikIsler();
@@ -2220,6 +2226,7 @@ function isFormu(id, daireId) {
         daireler().map(function (d) { return '<option value="' + d.id + '"' + (d.id === did ? ' selected' : '') + '>Daire ' + esc(d.no) + (d.kiraci ? ' · ' + esc(d.kiraci) : '') + '</option>'; }).join('') +
         '</select></div>' +
         '<div class="field"><label for="i-metin">Ne yapılacak?</label><textarea id="i-metin" placeholder="Örn. Mutfak musluğu akıtıyor">' + esc(n ? n.metin : '') + '</textarea></div>' +
+        isFotoAlan(n) +
         '<button type="button" class="btn block" data-act="is-kaydet" data-id="' + (n ? n.id : '') + '">Kaydet</button>' +
         (n ? '<button type="button" class="btn danger block" data-act="is-sil" data-id="' + n.id + '">Sil</button>' : '') + '</div>';
     }
@@ -2230,9 +2237,9 @@ function isKaydet(id) {
   if (!metin) { toast('Ne yapılacağını yazın'); return; }
   if (id) {
     var n = DB.notlar.filter(function (x) { return x.id === id; })[0];
-    if (n) { n.metin = metin; n.daireId = did; }
+    if (n) { n.metin = metin; n.daireId = did; n.fotolar = fotoKaydetFark(n.fotolar); }
   } else {
-    DB.notlar.push({ id: yeniId(), daireId: did, metin: metin, durum: 'bekliyor', tarih: bugun(), kim: kimdir() });
+    DB.notlar.push({ id: yeniId(), daireId: did, metin: metin, durum: 'bekliyor', tarih: bugun(), kim: kimdir(), fotolar: fotoKaydetFark([]) });
   }
   kaydet(); sayfaKapat(); yenile(); toast('Kaydedildi');
 }
@@ -2712,6 +2719,8 @@ var REHBER = [
   ] },
   { k: 'Daireler ve kiracılar', ik: 'bina', l: [
     ['Yeni kiracı nasıl eklenir?', 'Boş daireye girin → “Yeni kiracı”. Ad, telefon, giriş tarihi, kira ve depozitoyu yazıp kaydedin.', 'sekme:daireler'],
+    ['Teslim kaydı nedir, nasıl yapılır?', 'Kiracı girerken ve çıkarken dairenin durumunu kaydetmek için: daireye girin → “Teslim kayıtları” → “+ Giriş teslimi” ya da “+ Çıkış teslimi”. Anahtar sayısı, sayaçlar, oda oda iyi/hasarlı ve fotoğraflar girilir. Çıkış kaydı girişle yan yana karşılaştırılır; girişte iyi olup çıkışta hasarlı olanlar kırmızı görünür.', 'sekme:daireler'],
+    ['Fotoğraf nasıl eklenir?', 'Teslim kaydında ya da arıza kaydında “Fotoğraf ekle”ye dokunun; kamerayla çekin ya da galeriden seçin. Fotoğrafa dokununca büyür, “Paylaş” ile gönderilir. Büyük hali çeken telefonda saklanır, diğer telefonlarda küçük kopyası görünür.', 'sekme:daireler'],
     ['Kiracı çıkınca ne yapmalıyım?', 'Daireye girin → altta “Kiracı çıktı”. Son ayı seçin; kiracı “Eski kiracılar”a taşınır, ödenmemiş borçları görünmeye devam eder.', 'sekme:daireler'],
     ['Abone numarası, petek sayısı nasıl değiştirilir?', 'Daireye girin → “Düzenle”. Elektrik ve su abone no, petek sayısı, kira ve özel aidat oradadır. Eksikleri toplu görmek için Özet’teki “Eksik bilgi → Tamamla”.', 'abonelikler'],
     ['Kira artışı nasıl yapılır?', 'Özet’teki “Kira artışı yaklaşanlar”dan daireye dokunun ya da daire → “Kira artışı”. Ayarlar’a TÜFE oranını yazarsanız yeni kira hazır gelir. Eski aylar eski kirayla kalır.', 'sekme:ozet'],
@@ -2841,6 +2850,7 @@ var TURLAR = [
   { ad: 'Daireler ve kiracılar', ik: 'kisi', renk: 'mavi', adim: [
     { sekme: 'daireler', h: '#main .filters', b: 'Süzgeçler', m: 'Hepsi, ödemeyenler, ödeyenler ya da boş daireleri tek dokunuşla ayırın.' },
     { sekme: 'daireler', h: '#arama', b: 'Arama', m: 'Daire no, kiracı adı, telefon ya da abone numarasıyla arayın.' },
+    { sekme: 'daireler', h: '#daire-listesi .row-wrap', b: 'Teslim kaydı', m: 'Daire sayfasındaki “Teslim kayıtları” bölümünde kiracı girerken ve çıkarken anahtar, sayaçlar, oda oda durum ve fotoğraflar kaydedilir. Çıkışta girişle karşılaştırılır.' },
     { sekme: 'daireler', h: '#daire-listesi .row-wrap', b: 'Daire satırı', m: 'Kira ve aidat ayrı satırlarda, durumlarıyla görünür. Sağdaki turuncu rozet petek sayısıdır. Satıra dokununca daire sayfası açılır: arama, WhatsApp, düzenleme, kira artışı ve hesap dökümü oradadır.' }
   ] },
   { ad: 'Kömür takibi', ik: 'alev', renk: 'turuncu', adim: [
@@ -2858,7 +2868,7 @@ var TURLAR = [
     { sekme: 'ayarlar', h: '[data-act=bildirim-dene]', b: 'Deneme bildirimi', m: 'Bildirimlerin çalıştığını görmek için dokunun.' }
   ] }
 ];
-var TURD = null;
+var TURD = null;  /* tur durumu (TUR ödeme türü adlarıdır, karıştırma) */
 function ogreticiSayfasi() {
   sayfaAc({
     baslik: function () { return 'Öğretici'; },
@@ -2932,6 +2942,253 @@ Object.assign(EYLEM, {
     YIGIN = []; sayfaCiz();
     TURD = { tur: TURLAR[+el.dataset.v], i: 0 };
     setTimeout(turGoster, 60);
+  }
+});
+
+/* ---------- Fotoğraf: büyük hali telefonda (files/foto), küçük kopyası kayıtta (diğer telefonlar da görür) ---------- */
+var FOTO_BELLEK = {};
+function fotoUrl(f) {
+  try { if (BR && BR.fotoVar && BR.fotoVar(f.ad)) return BR.fotoKlasor() + f.ad; } catch (e) { /* yoksay */ }
+  return FOTO_BELLEK[f.ad] || f.k || '';
+}
+function fotoBuyukVar(f) {
+  try { if (BR && BR.fotoVar) return BR.fotoVar(f.ad); } catch (e) { /* yoksay */ }
+  return !!FOTO_BELLEK[f.ad];
+}
+function resimKucult(img, enBuyuk, kalite) {
+  var w = img.naturalWidth, h = img.naturalHeight, o = Math.min(1, enBuyuk / Math.max(w, h));
+  var c = document.createElement('canvas');
+  c.width = Math.round(w * o); c.height = Math.round(h * o);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', kalite);
+}
+function fotoIsle(dosya) {
+  return new Promise(function (coz) {
+    var r = new FileReader();
+    r.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var ad = 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + '.jpg';
+        var buyuk = resimKucult(img, 1600, 0.82), kucuk = resimKucult(img, 300, 0.6);
+        var ok = false;
+        try { if (BR && BR.fotoKaydet) ok = BR.fotoKaydet(ad, buyuk.split(',')[1]); } catch (e) { ok = false; }
+        if (!ok) FOTO_BELLEK[ad] = buyuk;
+        coz({ ad: ad, k: kucuk, t: bugun() });
+      };
+      img.onerror = function () { coz(null); };
+      img.src = r.result;
+    };
+    r.onerror = function () { coz(null); };
+    r.readAsDataURL(dosya);
+  });
+}
+function fotoGridHtml(duzenle, liste) {
+  var l = liste || S.fotoTaslak || [];
+  return l.map(function (f, i) {
+    return '<span class="foto-k"><button type="button" class="foto-img" data-act="foto-bak" data-i="' + i + '" data-kaynak="' + (duzenle ? 'taslak' : 'kayit') + '" style="background-image:url(\'' + fotoUrl(f) + '\')" aria-label="Fotoğrafı büyüt"></button>' +
+      (duzenle ? '<button type="button" class="foto-sil" data-act="foto-cikar" data-i="' + i + '" aria-label="Fotoğrafı kaldır">×</button>' : '') + '</span>';
+  }).join('') + (duzenle ? '<label class="foto-ekle">' + ikon('kamera') + '<span>Fotoğraf ekle</span><input type="file" accept="image/*" multiple data-change="foto-sec"></label>' : '');
+}
+function fotoGridYenile() { var g = document.getElementById('foto-grid'); if (g) g.innerHTML = fotoGridHtml(true); }
+DEGISIM['foto-sec'] = function (el) {
+  var dosyalar = Array.prototype.slice.call(el.files || []);
+  if (!dosyalar.length) return;
+  S.fotoTaslak = S.fotoTaslak || [];
+  if (S.fotoTaslak.length + dosyalar.length > 12) { toast('En fazla 12 fotoğraf eklenebilir'); dosyalar = dosyalar.slice(0, Math.max(0, 12 - S.fotoTaslak.length)); }
+  toast('Fotoğraf hazırlanıyor…');
+  dosyalar.reduce(function (p, f) {
+    return p.then(function () { return fotoIsle(f).then(function (x) { if (x) S.fotoTaslak.push(x); fotoGridYenile(); }); });
+  }, Promise.resolve()).then(function () { toast(dosyalar.length > 1 ? dosyalar.length + ' fotoğraf eklendi' : 'Fotoğraf eklendi'); });
+  el.value = '';
+};
+function fotoKaydetFark(eski) {
+  var yeni = (S.fotoTaslak || []).map(function (f) { return f.ad; });
+  (eski || []).forEach(function (f) { if (yeni.indexOf(f.ad) < 0) { try { if (BR && BR.fotoSil) BR.fotoSil(f.ad); } catch (e) { /* yoksay */ } } });
+  return (S.fotoTaslak || []).slice();
+}
+function fotoGoster(liste, i, metin) {
+  var f = liste[i]; if (!f) return;
+  var p = document.getElementById('foto-perde');
+  if (!p) {
+    p = document.createElement('div'); p.id = 'foto-perde';
+    document.documentElement.appendChild(p);
+    p.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-fp]'); if (!b) return;
+      var v = b.dataset.fp, s = FOTO_GOSTER;
+      if (v === 'kapat') p.remove();
+      else if (v === 'onceki' && s.i > 0) fotoGoster(s.l, s.i - 1, s.m);
+      else if (v === 'sonraki' && s.i < s.l.length - 1) fotoGoster(s.l, s.i + 1, s.m);
+      else if (v === 'paylas') { if (BR && BR.fotoPaylas) BR.fotoPaylas(JSON.stringify([s.l[s.i].ad]), s.m || ''); else toast('Paylaşma yalnız telefonda çalışır'); }
+    });
+  }
+  FOTO_GOSTER = { l: liste, i: i, m: metin };
+  var buyuk = fotoBuyukVar(f);
+  p.innerHTML = '<div class="fp-ust"><span>' + (i + 1) + ' / ' + liste.length + (f.t ? ' · ' + esc(tarihAdi(f.t)) : '') + '</span>' +
+    '<button type="button" data-fp="kapat" aria-label="Kapat">×</button></div>' +
+    '<div class="fp-resim"><img src="' + fotoUrl(f) + '" alt="Fotoğraf"></div>' +
+    (buyuk ? '' : '<p class="fp-not">Bu fotoğraf başka bir telefonda çekildi; burada küçük kopyası görünüyor.</p>') +
+    '<div class="fp-alt"><button type="button" data-fp="onceki"' + (i ? '' : ' disabled') + '>‹</button>' +
+    (buyuk ? '<button type="button" class="fp-paylas" data-fp="paylas">Paylaş</button>' : '<span></span>') +
+    '<button type="button" data-fp="sonraki"' + (i < liste.length - 1 ? '' : ' disabled') + '>›</button></div>';
+}
+var FOTO_GOSTER = null;
+
+/* ---------- Giriş / çıkış teslim kaydı ---------- */
+var TESLIM_KALEM = [['duvar', 'Duvar ve boya'], ['kapi', 'Kapılar ve kilitler'], ['pencere', 'Pencere ve camlar'], ['mutfak', 'Mutfak'],
+  ['banyo', 'Banyo ve tuvalet'], ['kombi', 'Kombi ve petekler'], ['elektrik', 'Priz ve elektrik'], ['zemin', 'Zemin']];
+function teslimKiraciAdi(d) {
+  if (d.kiraci) return d.kiraci;
+  var e = (d.eskiKiracilar || []).slice(-1)[0];
+  return e ? e.ad : '';
+}
+function teslimBul(d, tid) { return (d.teslimler || []).filter(function (t) { return t.id === tid; })[0]; }
+function teslimKarti(d) {
+  var l = (d.teslimler || []).slice().sort(function (a, b) { return a.tarih < b.tarih ? 1 : -1; });
+  return '<section class="card">' + baslik('anahtar', 'Teslim kayıtları') +
+    (l.length ? '<div class="list">' + l.map(function (t) {
+      var hasar = TESLIM_KALEM.filter(function (k) { return (t.kontrol || {})[k[0]] === 'hasarli'; }).length;
+      return '<button type="button" class="row" data-act="teslim-ac" data-id="' + d.id + '" data-t="' + t.id + '">' +
+        '<span class="od-ik od-' + (t.tur === 'giris' ? 'yesil' : 'turuncu') + '">' + ikon(t.tur === 'giris' ? 'giris' : 'cikis') + '</span>' +
+        '<span class="row-main"><span class="row-title">' + (t.tur === 'giris' ? 'Giriş' : 'Çıkış') + ' · ' + esc(tarihAdi(t.tarih)) + '</span>' +
+        '<span class="row-sub">' + esc(t.kiraci || '') + ((t.fotolar || []).length ? ' · ' + t.fotolar.length + ' fotoğraf' : '') +
+        (hasar ? ' · <span style="color:var(--bad)">' + hasar + ' hasar</span>' : '') + '</span></span><span class="bk-ok">›</span></button>';
+    }).join('') + '</div>' : '<p class="note">Kiracı girerken ve çıkarken dairenin durumunu fotoğraflarıyla kaydedin.</p>') +
+    '<div class="actions">' + (d.kiraci ? '<button type="button" class="btn ghost" data-act="teslim-yeni" data-id="' + d.id + '" data-v="giris">+ Giriş teslimi</button>' : '') +
+    '<button type="button" class="btn ghost" data-act="teslim-yeni" data-id="' + d.id + '" data-v="cikis">+ Çıkış teslimi</button></div></section>';
+}
+function teslimFormu(did, tur, tid) {
+  var d = daireBul(did), t = tid ? teslimBul(d, tid) : null;
+  S.fotoTaslak = t ? (t.fotolar || []).slice() : [];
+  S.teslimKontrol = t ? Object.assign({}, t.kontrol || {}) : {};
+  if (!t) { var g = teslimGirisi(d, { tur: tur, kiraci: teslimKiraciAdi(d), tarih: bugun() }); if (tur === 'cikis' && g) S.teslimKontrol = Object.assign({}, g.kontrol || {}); }
+  var x = t || { tur: tur, tarih: bugun(), kiraci: teslimKiraciAdi(d), anahtar: '', elkSayac: '', suSayac: '', not: '' };
+  sayfaAc({
+    daireId: did,
+    baslik: function () { return 'Daire ' + d.no + ' · ' + (x.tur === 'giris' ? 'giriş' : 'çıkış') + ' teslimi'; },
+    ciz: function () {
+      function alan(id, et, v, ek) { return '<div class="field"><label for="' + id + '">' + et + '</label><input id="' + id + '" value="' + esc(v || '') + '"' + (ek || '') + '></div>'; }
+      return '<div class="form">' +
+        '<div class="grid2">' + alan('ts-kiraci', 'Kiracı', x.kiraci) + alan('ts-tarih', 'Tarih', x.tarih, ' type="date"') + '</div>' +
+        '<div class="grid2">' + alan('ts-anahtar', 'Anahtar sayısı', x.anahtar, ' inputmode="numeric"') + alan('ts-elk', 'Elektrik sayacı', x.elkSayac, ' inputmode="decimal"') + '</div>' +
+        alan('ts-su', 'Su sayacı', x.suSayac, ' inputmode="decimal"') +
+        '<div class="field"><span class="lbl">Dairenin durumu</span><div class="ts-kontrol">' + TESLIM_KALEM.map(function (k) {
+          var v = S.teslimKontrol[k[0]] || '';
+          return '<div class="ts-satir"><span>' + k[1] + '</span><span class="ts-sec">' +
+            '<button type="button" class="' + (v === 'iyi' ? 'on iyi' : '') + '" data-act="ts-durum" data-k="' + k[0] + '" data-v="iyi">İyi</button>' +
+            '<button type="button" class="' + (v === 'hasarli' ? 'on kotu' : '') + '" data-act="ts-durum" data-k="' + k[0] + '" data-v="hasarli">Hasarlı</button></span></div>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><label for="ts-not">Not</label><textarea id="ts-not" placeholder="Örn. Salon duvarında çivi delikleri, banyo musluğu damlatıyor">' + esc(x.not || '') + '</textarea></div>' +
+        '<div class="field"><span class="lbl">Fotoğraflar</span><div class="foto-grid" id="foto-grid">' + fotoGridHtml(true) + '</div></div>' +
+        '<button type="button" class="btn block" data-act="teslim-kaydet" data-id="' + d.id + '" data-v="' + x.tur + '" data-t="' + (t ? t.id : '') + '">Kaydet</button>' +
+        (t ? '<button type="button" class="btn danger block" data-act="teslim-sil" data-id="' + d.id + '" data-t="' + t.id + '">Sil</button>' : '') + '</div>';
+    }
+  });
+}
+function teslimKaydet(did, tur, tid) {
+  var d = daireBul(did), tarih = $('#ts-tarih').value || bugun();
+  d.teslimler = d.teslimler || [];
+  var eski = tid ? teslimBul(d, tid) : null;
+  var veri = { tur: tur, tarih: tarih, kiraci: $('#ts-kiraci').value.trim(), anahtar: $('#ts-anahtar').value.trim(),
+    elkSayac: $('#ts-elk').value.trim(), suSayac: $('#ts-su').value.trim(), kontrol: Object.assign({}, S.teslimKontrol),
+    not: $('#ts-not').value.trim(), fotolar: fotoKaydetFark(eski && eski.fotolar) };
+  if (eski) Object.assign(eski, veri);
+  else d.teslimler.push(Object.assign({ id: yeniId(), kim: kimdir() }, veri));
+  kaydet(); sayfaKapat(); yenile(); toast('Teslim kaydedildi');
+}
+/* Çıkış kaydının karşılaştırılacağı giriş kaydı: aynı kiracının, çıkıştan önceki son girişi */
+function teslimGirisi(d, t) {
+  if (t.tur !== 'cikis') return null;
+  var l = (d.teslimler || []).filter(function (x) { return x.tur === 'giris' && x.tarih <= t.tarih; })
+    .sort(function (a, b) { return a.tarih < b.tarih ? 1 : -1; });
+  var ayni = l.filter(function (x) { return (x.kiraci || '').trim() === (t.kiraci || '').trim(); });
+  return ayni[0] || l[0] || null;
+}
+function teslimMetni(d, t) {
+  var g = teslimGirisi(d, t), k = t.kontrol || {};
+  var m = 'Elif Apartmanı – Daire ' + d.no + ' ' + (t.tur === 'giris' ? 'giriş' : 'çıkış') + ' teslimi\n' + (t.kiraci || '') + ' · ' + tarihAdi(t.tarih) + '\n\n' +
+    (t.anahtar ? 'Anahtar: ' + t.anahtar + '\n' : '') + (t.elkSayac ? 'Elektrik sayacı: ' + t.elkSayac + '\n' : '') + (t.suSayac ? 'Su sayacı: ' + t.suSayac + '\n' : '') + '\n';
+  m += TESLIM_KALEM.filter(function (x) { return k[x[0]]; }).map(function (x) {
+    var gv = g && (g.kontrol || {})[x[0]];
+    return '• ' + x[1] + ': ' + (k[x[0]] === 'iyi' ? 'İyi' : 'Hasarlı') + (gv && gv !== k[x[0]] ? ' (girişte ' + (gv === 'iyi' ? 'iyi' : 'hasarlı') + ')' : '');
+  }).join('\n');
+  if (t.not) m += '\n\nNot: ' + t.not;
+  return m;
+}
+function teslimSayfasi(did, tid) {
+  var d = daireBul(did), t = teslimBul(d, tid); if (!t) return;
+  sayfaAc({
+    daireId: did,
+    baslik: function () { return 'Daire ' + d.no + ' · ' + (t.tur === 'giris' ? 'giriş' : 'çıkış') + ' teslimi'; },
+    ciz: function () {
+      t = teslimBul(d, tid) || t;
+      var g = teslimGirisi(d, t), k = t.kontrol || {}, gk = g ? (g.kontrol || {}) : {};
+      function fark(a, b) { var x = sayi(a), y = sayi(b); return a && b && y >= x ? ' <small class="muted">(+' + NF.format(Math.round((y - x) * 10) / 10) + ')</small>' : ''; }
+      var h = '<section class="card"><div class="dk-bas"><span class="od-ik od-' + (t.tur === 'giris' ? 'yesil' : 'turuncu') + '">' + ikon(t.tur === 'giris' ? 'giris' : 'cikis') + '</span>' +
+        '<span><b>' + esc(t.kiraci || '–') + '</b><small>' + (t.tur === 'giris' ? 'Giriş' : 'Çıkış') + ' · ' + esc(tarihAdi(t.tarih)) + (t.kim ? ' · ' + esc(kisaKim(t.kim)) : '') + '</small></span></div>' +
+        '<dl class="kv">' + (t.anahtar ? '<dt>Anahtar</dt><dd>' + esc(t.anahtar) + (g && g.anahtar && g.anahtar !== t.anahtar ? ' <small style="color:var(--bad)">(girişte ' + esc(g.anahtar) + ')</small>' : '') + '</dd>' : '') +
+        (t.elkSayac ? '<dt>Elektrik sayacı</dt><dd>' + esc(t.elkSayac) + (g ? fark(g.elkSayac, t.elkSayac) : '') + '</dd>' : '') +
+        (t.suSayac ? '<dt>Su sayacı</dt><dd>' + esc(t.suSayac) + (g ? fark(g.suSayac, t.suSayac) : '') + '</dd>' : '') + '</dl></section>';
+      h += '<section class="card">' + baslik('ev', 'Dairenin durumu') +
+        (g ? '<div class="ts-tablo"><div class="ts-bas"><span></span><span>Giriş</span><span>Çıkış</span></div>' : '<div class="ts-tablo tek">') +
+        TESLIM_KALEM.map(function (x) {
+          var v = k[x[0]] || '', gv = gk[x[0]] || '', degisti = g && gv === 'iyi' && v === 'hasarli';
+          function ch(z) { return z === 'iyi' ? '<span class="chip odendi">İyi</span>' : z === 'hasarli' ? '<span class="chip gecikti">Hasarlı</span>' : '<span class="muted">–</span>'; }
+          return '<div class="ts-tsatir' + (degisti ? ' degisti' : '') + '"><span>' + x[1] + '</span>' + (g ? '<span>' + ch(gv) + '</span>' : '') + '<span>' + ch(v) + '</span></div>';
+        }).join('') + '</div>' +
+        (g && TESLIM_KALEM.some(function (x) { return gk[x[0]] === 'iyi' && k[x[0]] === 'hasarli'; }) ? '<p class="note warn">Kırmızı satırlar girişte iyi olup çıkışta hasarlı görünenler.</p>' : '') +
+        (t.not ? '<p class="note"><b>Not:</b> ' + esc(t.not) + '</p>' : '') + (g && g.not ? '<p class="note"><b>Giriş notu:</b> ' + esc(g.not) + '</p>' : '') + '</section>';
+      if ((t.fotolar || []).length || (g && (g.fotolar || []).length)) {
+        h += '<section class="card">' + baslik('kamera', 'Fotoğraflar') +
+          ((t.fotolar || []).length ? (g ? '<span class="lbl">Çıkış</span>' : '') + '<div class="foto-grid">' + fotoGridHtml(false, t.fotolar).replace(/data-kaynak="kayit"/g, 'data-kaynak="t:' + t.id + '"') + '</div>' : '') +
+          (g && (g.fotolar || []).length ? '<span class="lbl">Giriş</span><div class="foto-grid">' + fotoGridHtml(false, g.fotolar).replace(/data-kaynak="kayit"/g, 'data-kaynak="t:' + g.id + '"') + '</div>' : '') + '</section>';
+      }
+      h += '<div class="actions"><button type="button" class="btn wa-tam" data-act="teslim-paylas" data-id="' + d.id + '" data-t="' + t.id + '">Paylaş</button>' +
+        '<button type="button" class="btn ghost" data-act="teslim-duzenle" data-id="' + d.id + '" data-t="' + t.id + '">Düzenle</button></div>';
+      return h;
+    }
+  });
+}
+
+/* Arızalara fotoğraf */
+function isFotoAlan(n) {
+  S.fotoTaslak = n ? (n.fotolar || []).slice() : [];
+  return '<div class="field"><span class="lbl">Fotoğraflar</span><div class="foto-grid" id="foto-grid">' + fotoGridHtml(true) + '</div></div>';
+}
+
+Object.assign(EYLEM, {
+  'teslim-yeni': function (el) { teslimFormu(el.dataset.id, el.dataset.v); },
+  'teslim-ac': function (el) { teslimSayfasi(el.dataset.id, el.dataset.t); },
+  'teslim-duzenle': function (el) { var t = teslimBul(daireBul(el.dataset.id), el.dataset.t); if (t) teslimFormu(el.dataset.id, t.tur, t.id); },
+  'teslim-kaydet': function (el) { teslimKaydet(el.dataset.id, el.dataset.v, el.dataset.t || null); },
+  'teslim-sil': function (el) {
+    var d = daireBul(el.dataset.id), tid = el.dataset.t;
+    onayla('Bu teslim kaydı ve fotoğrafları silinecek.', 'Sil', function () {
+      var t = teslimBul(d, tid);
+      (t && t.fotolar || []).forEach(function (f) { try { if (BR && BR.fotoSil) BR.fotoSil(f.ad); } catch (e) { /* yoksay */ } });
+      d.teslimler = (d.teslimler || []).filter(function (x) { return x.id !== tid; });
+      kaydet(); YIGIN.pop(); YIGIN.pop(); YIGIN.pop(); if (YIGIN.length) sayfaCiz(); else sayfaKapat(); ciz(); toast('Silindi');
+    });
+  },
+  'teslim-paylas': function (el) {
+    var d = daireBul(el.dataset.id), t = teslimBul(d, el.dataset.t); if (!t) return;
+    var adlar = (t.fotolar || []).filter(fotoBuyukVar).map(function (f) { return f.ad; });
+    if (BR && BR.fotoPaylas) BR.fotoPaylas(JSON.stringify(adlar), teslimMetni(d, t));
+    else kopyala(teslimMetni(d, t), 'Teslim raporu');
+  },
+  'ts-durum': function (el) {
+    var k = el.dataset.k, v = el.dataset.v;
+    S.teslimKontrol[k] = S.teslimKontrol[k] === v ? '' : v;
+    var b = el.parentNode.querySelectorAll('button');
+    for (var i = 0; i < b.length; i++) { var on = S.teslimKontrol[k] === b[i].dataset.v; b[i].className = on ? 'on ' + (b[i].dataset.v === 'iyi' ? 'iyi' : 'kotu') : ''; }
+  },
+  'foto-cikar': function (el) { S.fotoTaslak.splice(+el.dataset.i, 1); fotoGridYenile(); },
+  'foto-bak': function (el) {
+    var kaynak = el.dataset.kaynak, l = S.fotoTaslak || [];
+    if (kaynak && kaynak.indexOf('t:') === 0) {
+      var tid = kaynak.slice(2);
+      DB.daireler.some(function (d) { var t = teslimBul(d, tid); if (t) { l = t.fotolar || []; return true; } return false; });
+    }
+    fotoGoster(l, +el.dataset.i, '');
   }
 });
 

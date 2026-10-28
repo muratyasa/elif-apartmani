@@ -646,3 +646,37 @@ body { hyphens: manual; -webkit-hyphens: manual; word-break: normal; overflow-wr
 @media (max-width: 380px) { .top .logo { display: none; } }
 @media (max-width: 520px) { body.buyuk .top .logo { display: none; } body.buyuk .tarih-uzun { display: none; } body.buyuk .tarih-kisa { display: inline; } }
 @media (min-width: 401px) and (max-width: 520px) { body.buyuk .brand { font-size: 19px; } }
+
+/* Fotoğraflar */
+.foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.foto-k { position: relative; aspect-ratio: 1; }
+.foto-img { width: 100%; height: 100%; border: 0; border-radius: 10px; background: var(--idle-soft) center/cover no-repeat; padding: 0; }
+.foto-sil { position: absolute; top: -6px; right: -6px; width: 26px; height: 26px; border-radius: 999px; border: 2px solid var(--surface); background: var(--bad); color: #fff; font-size: 16px; line-height: 1; padding: 0; }
+.foto-ekle { aspect-ratio: 1; border: 2px dashed var(--accent); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--accent); font-size: 12px; font-weight: 700; text-align: center; cursor: pointer; background: var(--accent-soft); }
+.foto-ekle svg { width: 26px; height: 26px; }
+.foto-ekle input { display: none; }
+#foto-perde { position: fixed; inset: 0; z-index: 1001; background: #0B1118; color: #fff; display: flex; flex-direction: column; }
+.fp-ust { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-size: 15px; }
+.fp-ust button { border: 0; background: none; color: #fff; font-size: 32px; line-height: 1; }
+.fp-resim { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.fp-resim img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.fp-not { margin: 6px 16px; font-size: 13px; opacity: .75; text-align: center; }
+.fp-alt { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 20px; }
+.fp-alt button { border: 0; background: rgba(255,255,255,.14); color: #fff; width: 52px; height: 52px; border-radius: 999px; font-size: 28px; }
+.fp-alt button:disabled { opacity: .3; }
+.fp-alt .fp-paylas { width: auto; padding: 0 26px; font-size: 16px; font-weight: 700; background: #1FA855; }
+/* Teslim */
+.ts-kontrol { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
+.ts-satir { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.ts-satir:first-child { border-top: 0; }
+.ts-sec { display: flex; gap: 6px; flex: none; }
+.ts-sec button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.ts-sec button.on.iyi { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.ts-sec button.on.kotu { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.ts-tablo .ts-bas, .ts-tablo .ts-tsatir { display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px; align-items: center; gap: 6px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.ts-tablo.tek .ts-tsatir { grid-template-columns: minmax(0, 1fr) 84px; }
+.ts-tablo .ts-bas { border-top: 0; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.ts-tablo span:not(:first-child) { text-align: center; }
+.ts-tsatir.degisti { background: var(--bad-soft); border-radius: 8px; padding-left: 6px; padding-right: 6px; }
+.lbl { font-size: 14px; color: var(--muted); font-weight: 600; }
+#foto-perde, #foto-perde button { font-family: Roboto, "Segoe UI", system-ui, sans-serif; }
