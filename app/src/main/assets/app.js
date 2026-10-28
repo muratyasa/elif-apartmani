@@ -1964,7 +1964,7 @@ W.onBackupFolder = function () {
   if (S.tab === 'ayarlar' && !YIGIN.length) ciz();
 };
 W.onBack = function () {
-  if (typeof TUR !== 'undefined' && TUR) { turBitir(); return true; }
+  if (typeof TURD !== 'undefined' && TURD) { turBitir(); return true; }
   if (YIGIN.length) { sayfaKapat(); yenile(); return true; }
   if (S.tab !== 'ozet') { S.tab = 'ozet'; ciz(); return true; }
   return false;
@@ -2858,7 +2858,7 @@ var TURLAR = [
     { sekme: 'ayarlar', h: '[data-act=bildirim-dene]', b: 'Deneme bildirimi', m: 'Bildirimlerin çalıştığını görmek için dokunun.' }
   ] }
 ];
-var TUR = null;
+var TURD = null;
 function ogreticiSayfasi() {
   sayfaAc({
     baslik: function () { return 'Öğretici'; },
@@ -2872,7 +2872,7 @@ function ogreticiSayfasi() {
   });
 }
 function turGoster() {
-  var t = TUR, a = t.tur.adim[t.i], kok = document.documentElement;
+  var t = TURD, a = t.tur.adim[t.i], kok = document.documentElement;
   if (S.tab !== a.sekme) { S.tab = a.sekme; ciz(); }
   var perde = document.getElementById('tur-perde');
   if (!perde) {
@@ -2883,8 +2883,8 @@ function turGoster() {
       var b = e.target.closest('[data-tur]'); if (!b) return;
       var v = b.dataset.tur;
       if (v === 'kapat') turBitir();
-      else if (v === 'ileri') { if (TUR.i < TUR.tur.adim.length - 1) { TUR.i++; turGoster(); } else turBitir(); }
-      else if (v === 'geri' && TUR.i > 0) { TUR.i--; turGoster(); }
+      else if (v === 'ileri') { if (TURD.i < TURD.tur.adim.length - 1) { TURD.i++; turGoster(); } else turBitir(); }
+      else if (v === 'geri' && TURD.i > 0) { TURD.i--; turGoster(); }
     });
   }
   if (a.ornekToast) toast('Daire 3 · Ekim 2026 ödendi', function () {}, { metin: 'Bildir', fn: function () {} });
@@ -2921,7 +2921,7 @@ function turGoster() {
   setTimeout(yerlestir, 120);
 }
 function turBitir() {
-  TUR = null;
+  TURD = null;
   var p = document.getElementById('tur-perde'); if (p) p.remove();
   var t = document.getElementById('toast'); if (t) t.hidden = true;
   window.scrollTo(0, 0);
@@ -2930,7 +2930,7 @@ Object.assign(EYLEM, {
   'ogretici': function () { ogreticiSayfasi(); },
   'tur-basla': function (el) {
     YIGIN = []; sayfaCiz();
-    TUR = { tur: TURLAR[+el.dataset.v], i: 0 };
+    TURD = { tur: TURLAR[+el.dataset.v], i: 0 };
     setTimeout(turGoster, 60);
   }
 });
