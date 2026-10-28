@@ -518,7 +518,7 @@ function vOzet() {
     .filter(function (x) { return x && x.g <= 45; }).sort(function (a, b) { return a.g - b.g; });
   var depYok = daireler().filter(function (d) { return depozitoDurumu(d) === 'alinmadi'; });
   var depBilinmez = DB.daireler.filter(function (d) { return !d.bos && !depozitoDurumu(d); }).length;
-  var h = (eksikler.length ? '<section class="card"><div class="card-head">' + baslik('bilgi', 'Eksik bilgi') +
+  var h = takvimKarti() + (eksikler.length ? '<section class="card"><div class="card-head">' + baslik('bilgi', 'Eksik bilgi') +
     '<button type="button" class="link" data-act="abonelikler">Tamamla</button></div>' +
     '<p class="note warn">' + eksikler.join(', ') + ' girilmemiş.</p></section>' : '') +
     (artislar.length ? '<section class="card">' + baslik('artis', 'Kira artışı yaklaşanlar') + '<div class="list">' + artislar.map(function (x) {
@@ -1164,7 +1164,8 @@ function daireSayfasi(id) {
         (!d.bos ? '<button type="button" class="btn ghost" data-act="kiraci-cikis" data-id="' + d.id + '">Kiracı çıktı</button>' : '') +
         (!d.bos ? '<button type="button" class="btn ghost" data-act="artis-ac" data-id="' + d.id + '">Kira artışı</button>' : '') +
         '<button type="button" class="btn ghost" data-act="toplu-ac" data-id="' + d.id + '">Geçmişi toplu gir</button>' +
-        (!d.bos ? '<button type="button" class="btn ghost" data-act="dokum" data-id="' + d.id + '">Hesap dökümü</button>' : '') + '</div>' +
+        (!d.bos ? '<button type="button" class="btn ghost" data-act="dokum" data-id="' + d.id + '">Hesap dökümü</button>' : '') +
+        (!d.bos ? '<button type="button" class="btn ghost" data-act="sozlesme" data-id="' + d.id + '">Kira sözleşmesi</button>' : '') + '</div>' +
         ((d.kiraArtislari || []).length ? '<section class="card">' + baslik('artis', 'Kira artışları') + '<dl class="kv">' +
           d.kiraArtislari.slice().sort(function (a, b) { return a.ay < b.ay ? 1 : -1; }).map(function (a) {
             return '<dt>' + esc(ayAdi(a.ay)) + '</dt><dd>' + TL(a.eski) + ' → ' + TL(a.yeni) + '</dd>';
@@ -2008,6 +2009,7 @@ function baslat() {
   });
   basiliTutKur();
   yaziBoyuUygula();
+  temaUygula();
   yukle();
   silinenleriTemizle();
   ciz();
@@ -2589,6 +2591,9 @@ function ekAyarlarHtml() {
     '<div class="seg">' + [[1, 'Normal'], [1.12, 'Büyük'], [1.24, 'Çok büyük']].map(function (x) {
       return '<button type="button" data-act="yazi-boyu" data-v="' + x[0] + '" class="' + (Math.abs(v - x[0]) < 0.01 ? 'on' : '') + '">' + x[1] + '</button>';
     }).join('') + '</div>' +
+    '<div class="field"><span class="lbl">Tema</span><div class="seg">' + [['acik', 'Açık'], ['koyu', 'Koyu'], ['oto', 'Telefona göre']].map(function (x) {
+      return '<button type="button" data-act="tema" data-v="' + x[0] + '" class="' + (temaAl() === x[0] ? 'on' : '') + '">' + x[1] + '</button>';
+    }).join('') + '</div></div>' +
     '<label class="check kutu"><input type="checkbox" data-change="petek-yazi"' + (petekYazili() ? ' checked' : '') + '> Petek simgesinin altında “petek” yazsın</label>' +
     '<p class="note">Yalnız bu telefonu etkiler.</p></section>' +
     '<section class="card">' + baslik('artis', 'Kira artışı ve ilan') +
@@ -2721,6 +2726,7 @@ var REHBER = [
     ['Yeni kiracı nasıl eklenir?', 'Boş daireye girin → “Yeni kiracı”. Ad, telefon, giriş tarihi, kira ve depozitoyu yazıp kaydedin.', 'sekme:daireler'],
     ['Teslim kaydı nedir, nasıl yapılır?', 'Kiracı girerken ve çıkarken dairenin durumunu kaydetmek için: daireye girin → “Teslim kayıtları” → “+ Giriş teslimi” ya da “+ Çıkış teslimi”. Anahtar sayısı, sayaçlar, oda oda iyi/hasarlı ve fotoğraflar girilir. Çıkış kaydı girişle yan yana karşılaştırılır; girişte iyi olup çıkışta hasarlı olanlar kırmızı görünür.', 'sekme:daireler'],
     ['Fotoğraf nasıl eklenir?', 'Teslim kaydında ya da arıza kaydında “Fotoğraf ekle”ye dokunun; kamerayla çekin ya da galeriden seçin. Fotoğrafa dokununca büyür, “Paylaş” ile gönderilir. Büyük hali çeken telefonda saklanır, diğer telefonlarda küçük kopyası görünür.', 'sekme:daireler'],
+    ['Kira sözleşmesi nasıl hazırlanır?', 'Daireye girin → altta “Kira sözleşmesi”. Kiracı, kira, depozito ve aidat bilgileri hazır gelir; kiraya veren adı ve bina adresini bir kez yazın. “PDF olarak kaydet / yazdır” telefonun yazdırma ekranını açar, oradan PDF kaydedin. İmzalamadan önce bir avukata ya da emlakçıya kontrol ettirin.', 'sekme:daireler'],
     ['Kiracı çıkınca ne yapmalıyım?', 'Daireye girin → altta “Kiracı çıktı”. Son ayı seçin; kiracı “Eski kiracılar”a taşınır, ödenmemiş borçları görünmeye devam eder.', 'sekme:daireler'],
     ['Abone numarası, petek sayısı nasıl değiştirilir?', 'Daireye girin → “Düzenle”. Elektrik ve su abone no, petek sayısı, kira ve özel aidat oradadır. Eksikleri toplu görmek için Özet’teki “Eksik bilgi → Tamamla”.', 'abonelikler'],
     ['Kira artışı nasıl yapılır?', 'Özet’teki “Kira artışı yaklaşanlar”dan daireye dokunun ya da daire → “Kira artışı”. Ayarlar’a TÜFE oranını yazarsanız yeni kira hazır gelir. Eski aylar eski kirayla kalır.', 'sekme:ozet'],
@@ -2756,6 +2762,8 @@ var REHBER = [
   ] },
   { k: 'Görünüm ve telefon', ik: 'kalem', l: [
     ['Adım adım öğretici var mı?', 'Evet. Üst banttaki kep simgesine dokunun; bir konu seçince ekranda ilgili düğme sarı çerçeveyle gösterilir ve adım adım anlatılır. Hiçbir kayıt değişmez.', 'ogretici'],
+    ['Gece modu nasıl açılır?', 'Ayarlar → Görünüm → Tema: Açık, Koyu ya da Telefona göre (telefon gece moduna geçince uygulama da koyulaşır).', 'sekme:ayarlar'],
+    ['Takvim nerede?', 'Özet sayfasının en üstünde, üstte seçili ayın takvimi vardır. Renkli noktalar o gün olanları gösterir: mavi ödeme günü, yeşil ödendi ya da ödeme alındı, kırmızı gecikti, mor kira artışı, turuncu kömür. Güne dokunun, ayrıntısı altta açılır.', 'sekme:ozet'],
     ['Yazıları nasıl büyütürüm?', 'Ayarlar → Görünüm → Normal / Büyük / Çok büyük. Yalnız o telefonu etkiler.', 'sekme:ayarlar'],
     ['Petek yazısını nasıl gizlerim?', 'Ayarlar → Görünüm → “Petek simgesinin altında ‘petek’ yazsın” kutusunun işaretini kaldırın.', 'sekme:ayarlar'],
     ['Ana ekrana kutucuk nasıl eklenir?', 'Telefonun ana ekranında boş bir yere basılı tutun → Widget’lar → Elif Apartmanı’nı sürükleyin. Kutucuk uygulama her açıldığında yenilenir.', ''],
@@ -2832,7 +2840,8 @@ var TURLAR = [
   { ad: 'Uygulamayı tanıyın', ik: 'bina', renk: 'mavi', adim: [
     { sekme: 'ozet', h: '#tabs', b: 'Alt menü', m: 'Özet, Daireler, Kömür, Geçmiş ve Ayarlar sayfaları arasında buradan geçersiniz.' },
     { sekme: 'ozet', h: '#periodnav', b: 'Ay seçimi', m: 'Ok tuşlarıyla önceki ya da sonraki aya geçin. Daireler listesi seçtiğiniz ayın ödemelerini gösterir.' },
-    { sekme: 'ozet', h: '#main .card', b: 'Özet kartları', m: 'Eksik bilgiler, yaklaşan kira artışları, depozitolar ve bu ayın toplamı burada toplanır. Karta dokunarak ayrıntıya geçebilirsiniz.' },
+    { sekme: 'ozet', h: '#main .takvim', b: 'Takvim', m: 'Seçili ayın takvimi. Renkli noktalar o gün olanları gösterir; bir güne dokununca ayrıntısı altta açılır.' },
+    { sekme: 'ozet', h: '#main .card + .card', b: 'Özet kartları', m: 'Eksik bilgiler, yaklaşan kira artışları, depozitolar ve bu ayın toplamı burada toplanır. Karta dokunarak ayrıntıya geçebilirsiniz.' },
     { sekme: 'ozet', h: '[data-act=bildirimler]', b: 'Bildirimler', m: 'Gelen ve yaklaşan bütün hatırlatmalar burada, gün gün listelenir.' },
     { sekme: 'ozet', h: '.top [data-act=yardim]', b: 'Rehber', m: 'Bir şeyi nasıl yapacağınızı unutursanız buradan arayın; her cevapta “Göster” düğmesi vardır.' },
     { sekme: 'ozet', h: '#fab', b: 'Ödeme gir', m: 'Her sayfada sağ altta durur. Kira, aidat, kömür ya da başka bir ödemeyi buradan girersiniz.' }
@@ -3189,6 +3198,189 @@ Object.assign(EYLEM, {
       DB.daireler.some(function (d) { var t = teslimBul(d, tid); if (t) { l = t.fotolar || []; return true; } return false; });
     }
     fotoGoster(l, +el.dataset.i, '');
+  }
+});
+
+/* ---------- Takvim (Özet'te, seçili ay) ---------- */
+function takvimOlaylari(ym) {
+  var o = {};
+  function ekle(t, tip, d, metin) { if (!t || t.slice(0, 7) !== ym) return; (o[t] = o[t] || []).push({ tip: tip, d: d, m: metin }); }
+  daireler().forEach(function (d) {
+    var k = kiraDurum(d, ym);
+    if (k.kod !== 'yok' && k.kod !== 'tanimsiz' && k.vade) ekle(k.vade, k.kod === 'odendi' ? 'odendi' : k.kod === 'gecikti' ? 'gecikti' : 'vade', d, 'Kira + aidat ' + TL(k.beklenen) + ' · ' + DURUM[k.kod]);
+    var a = sonrakiArtis(d);
+    if (a) ekle(a, 'artis', d, 'Kira artışı' + (artisYapildiMi(d, a) ? ' (yapıldı)' : oneriKira(d) ? ' · önerilen ' + TL(oneriKira(d)) : ''));
+    (d.teslimler || []).forEach(function (t) { ekle(t.tarih, 'teslim', d, (t.tur === 'giris' ? 'Giriş' : 'Çıkış') + ' teslimi'); });
+  });
+  DB.komur.forEach(function (s) { if (s.sonOdeme) ekle(s.sonOdeme, 'komur', null, s.sezon + ' kömür son ödeme günü'); });
+  var odenen = {};
+  DB.odemeler.forEach(function (x) { if ((x.tarih || '').slice(0, 7) === ym && !x.toplu) odenen[x.tarih] = (odenen[x.tarih] || 0) + (+x.tutar || 0); });
+  Object.keys(odenen).forEach(function (t) { ekle(t, 'gelen', null, TL(odenen[t]) + ' ödeme alındı'); });
+  return o;
+}
+var TAKVIM_RENK = { vade: 'var(--accent)', odendi: 'var(--ok)', gecikti: 'var(--bad)', artis: '#6B3FA0', komur: '#C2410C', teslim: 'var(--idle)', gelen: 'var(--ok)' };
+function takvimKarti() {
+  var ym = S.ay, o = takvimOlaylari(ym), p = ym.split('-').map(Number);
+  var ilk = (new Date(p[0], p[1] - 1, 1).getDay() + 6) % 7, gunSay = aydakiGun(ym), bg = bugun();
+  if (!S.takvimGun || S.takvimGun.slice(0, 7) !== ym) S.takvimGun = bg.slice(0, 7) === ym ? bg : '';
+  var h = '<section class="card takvim">' + baslik('takvim', AYLAR[p[1] - 1] + ' takvimi') +
+    '<div class="tk-grid">' + ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'].map(function (g) { return '<span class="tk-bas">' + g + '</span>'; }).join('');
+  for (var i = 0; i < ilk; i++) h += '<span></span>';
+  for (var g = 1; g <= gunSay; g++) {
+    var t = ym + '-' + pad(g), l = o[t] || [], tipler = {};
+    l.forEach(function (x) { tipler[x.tip] = 1; });
+    h += '<button type="button" class="tk-gun' + (t === bg ? ' bugun' : '') + (t === S.takvimGun ? ' secili' : '') + (l.length ? '' : ' bos') + '" data-act="tk-gun" data-v="' + t + '">' +
+      '<b>' + g + '</b><span class="tk-nokta">' + Object.keys(tipler).slice(0, 4).map(function (k) { return '<i style="background:' + TAKVIM_RENK[k] + '"></i>'; }).join('') + '</span></button>';
+  }
+  h += '</div><div class="tk-lejant"><span><i style="background:var(--accent)"></i>Ödeme günü</span><span><i style="background:var(--ok)"></i>Ödendi / alındı</span><span><i style="background:var(--bad)"></i>Gecikti</span><span><i style="background:#6B3FA0"></i>Kira artışı</span><span><i style="background:#C2410C"></i>Kömür</span></div>';
+  if (S.takvimGun) {
+    var l2 = (o[S.takvimGun] || []).slice().sort(function (a, b) { return a.d && b.d ? daireSirala(a.d, b.d) : a.d ? 1 : -1; });
+    h += '<div class="tk-gunler"><div class="tk-baslik">' + esc(gunBasligi(S.takvimGun)) + '</div>' +
+      (l2.length ? (function () {
+        var gruplu = {}, sira = [];
+        l2.forEach(function (x) { if (!gruplu[x.tip]) { gruplu[x.tip] = []; sira.push(x.tip); } gruplu[x.tip].push(x); });
+        return sira.map(function (tip) {
+          var l3 = gruplu[tip];
+          if (l3.length > 4 && (tip === 'vade' || tip === 'odendi' || tip === 'gecikti')) {
+            return '<div class="tk-olay"><i style="background:' + TAKVIM_RENK[tip] + '"></i><span>' + l3.length + ' daire · ' + (tip === 'odendi' ? 'ödedi' : tip === 'gecikti' ? 'ödemesi gecikti' : 'ödeme bekleniyor') + '</span>' +
+              '<button type="button" class="link" data-act="sekme" data-tab="daireler">Listele</button></div>';
+          }
+          return l3.map(function (x) {
+            return '<div class="tk-olay"' + (x.d ? ' data-act="daire-ac" data-id="' + x.d.id + '" role="button"' : '') + '><i style="background:' + TAKVIM_RENK[x.tip] + '"></i>' +
+              '<span>' + (x.d ? '<b>' + esc(x.d.no) + '</b> ' + esc(x.d.kiraci || bosAdi(x.d)) + ' · ' : '') + esc(x.m) + '</span></div>';
+          }).join('');
+        }).join('');
+      })() : '<p class="empty">Bu gün için kayıt yok.</p>') + '</div>';
+  }
+  return h + '</section>';
+}
+
+/* ---------- Gece modu ---------- */
+function temaAl() { try { return localStorage.getItem('elif-tema') || 'acik'; } catch (e) { return 'acik'; } }
+function temaUygula() {
+  if (typeof document === 'undefined' || !document.body) return;
+  var t = temaAl(), koyu = t === 'koyu' || (t === 'oto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.body.classList.toggle('koyu', koyu);
+  document.documentElement.style.colorScheme = koyu ? 'dark' : 'light';
+}
+if (typeof window !== 'undefined' && window.matchMedia) {
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', temaUygula); } catch (e) { /* yoksay */ }
+}
+
+/* ---------- Kira sözleşmesi taslağı ---------- */
+function sozlesmeSayfasi(id) {
+  var d = daireBul(id), A = DB.ayarlar;
+  sayfaAc({
+    daireId: id,
+    baslik: function () { return 'Daire ' + d.no + ' · kira sözleşmesi'; },
+    ciz: function () {
+      function alan(i, et, v, ek) { return '<div class="field"><label for="' + i + '">' + et + '</label><input id="' + i + '" value="' + esc(v == null ? '' : v) + '"' + (ek || '') + '></div>'; }
+      var bas = d.girisTarihi || bugun();
+      return '<p class="note">Bilgileri kontrol edin; “PDF olarak kaydet” ile telefonun yazdırma ekranı açılır, oradan PDF kaydedebilir ya da yazdırabilirsiniz. İmzalamadan önce son metni bir avukata ya da emlakçıya kontrol ettirmeniz önerilir.</p>' +
+        '<div class="form"><h3 class="section-title">Kiraya veren</h3>' +
+        '<div class="grid2">' + alan('sz-veren', 'Ad soyad', A.kiralayanAd || '') + alan('sz-verentel', 'Telefon', A.kiralayanTel || A.ilanTel || '', ' type="tel"') + '</div>' +
+        alan('sz-adres', 'Binanın adresi', A.binaAdres || '', ' placeholder="Mahalle, sokak, no, ilçe / il"') +
+        alan('sz-iban', 'IBAN (havale için, isteğe bağlı)', A.iban || '', ' placeholder="TR.."') +
+        '<h3 class="section-title">Kiracı</h3>' +
+        '<div class="grid2">' + alan('sz-kiraci', 'Ad soyad', d.kiraci) + alan('sz-kiracitel', 'Telefon', d.telefon, ' type="tel"') + '</div>' +
+        '<div class="grid2">' + alan('sz-tc', 'T.C. kimlik no', '', ' inputmode="numeric" maxlength="11" placeholder="Kaydedilmez"') + alan('sz-eskiadres', 'Kiracının önceki adresi', '', ' placeholder="İsteğe bağlı"') + '</div>' +
+        '<h3 class="section-title">Kira</h3>' +
+        '<div class="grid2">' + alan('sz-bas', 'Başlangıç tarihi', bas, ' type="date"') + alan('sz-sure', 'Süre (yıl)', '1', ' inputmode="numeric"') + '</div>' +
+        '<div class="grid2">' + alan('sz-kira', 'Aylık kira (₺)', d.kira || '', ' inputmode="decimal"') + alan('sz-dep', 'Depozito (₺)', d.depozito || d.kira || '', ' inputmode="decimal"') + '</div>' +
+        alan('sz-gun', 'Kira ödeme günü (her ayın)', d.odemeGunu || 15, ' inputmode="numeric"') +
+        '<div class="field"><label for="sz-demirbas">Demirbaşlar</label><textarea id="sz-demirbas">' + esc((+d.petek ? d.petek + ' adet kalorifer peteği (merkezi kömürlü kalorifer)' : 'Kalorifer petekleri') + '\nKapı ve pencereler, mutfak ve banyo armatürleri') + '</textarea></div>' +
+        '<div class="field"><label for="sz-ozel">Özel şartlar</label><textarea id="sz-ozel" class="uzun">' + esc(sozlesmeOzelVarsayilan(d)) + '</textarea></div>' +
+        '<button type="button" class="btn block" data-act="sozlesme-pdf" data-id="' + d.id + '">PDF olarak kaydet / yazdır</button>' +
+        '<button type="button" class="btn ghost block" data-act="sozlesme-onizle" data-id="' + d.id + '">Önizle</button></div>';
+    }
+  });
+}
+function sozlesmeOzelVarsayilan(d) {
+  var A = DB.ayarlar.aidat || {};
+  return '1. Kiracı, aylık kiraya ek olarak bina aidatını öder. Aidat Ekim–Nisan aylarında ' + TL(A.kis) + ', diğer aylarda ' + TL(A.yaz) + ' olup kira ile birlikte ödenir; bina yönetimince değiştirilebilir.\n' +
+    '2. Merkezi kalorifer kömür bedeli, her ısınma sezonu başında daireye düşen petek payına göre kiracı tarafından ödenir.\n' +
+    '3. Elektrik, su ve doğalgaz gibi abonelikler kiracı adına yapılır; kullanım bedelleri kiracıya aittir.\n' +
+    '4. Kiracı daireyi kiraya veren yazılı izni olmadan başkasına kiralayamaz, devredemez.\n' +
+    '5. Depozito, kiralanan eksiksiz ve hasarsız teslim edildiğinde, varsa borçlar düşülerek iade edilir.';
+}
+function sozlesmeVeri() {
+  function v(i) { var e = document.getElementById(i); return e ? e.value.trim() : ''; }
+  return { veren: v('sz-veren'), verenTel: v('sz-verentel'), adres: v('sz-adres'), iban: v('sz-iban'), kiraci: v('sz-kiraci'), kiraciTel: v('sz-kiracitel'),
+    tc: v('sz-tc'), eskiAdres: v('sz-eskiadres'), bas: v('sz-bas'), sure: v('sz-sure') || '1', kira: sayi(v('sz-kira')), dep: sayi(v('sz-dep')),
+    gun: v('sz-gun') || '15', demirbas: v('sz-demirbas'), ozel: v('sz-ozel') };
+}
+function yaziyla(n) {
+  n = Math.round(+n || 0); if (!n) return 'sıfır';
+  var b = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'], o = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+  function uc(x) { var y = Math.floor(x / 100), z = x % 100, l = []; if (y) l.push((y > 1 ? b[y] + ' ' : '') + 'yüz'); if (z >= 10) l.push(o[Math.floor(z / 10)]); if (z % 10) l.push(b[z % 10]); return l.join(' '); }
+  var l = [], mil = Math.floor(n / 1e6), bin = Math.floor(n / 1000) % 1000, kal = n % 1000;
+  if (mil) l.push(uc(mil) + ' milyon');
+  if (bin) l.push(bin > 1 ? uc(bin) + ' bin' : 'bin');
+  if (kal) l.push(uc(kal));
+  return l.join(' ');
+}
+function sozlesmeHtml(d, x) {
+  var bit = '';
+  if (x.bas) { var p = x.bas.split('-').map(Number); var t = new Date(p[0] + (+x.sure || 1), p[1] - 1, p[2] - 1); bit = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()); }
+  function s(k, v) { return '<tr><th>' + k + '</th><td>' + (v ? esc(v) : '&nbsp;') + '</td></tr>'; }
+  var madde = [
+    'Kiralanan, yukarıda adresi yazılı bağımsız bölümdür ve yalnızca konut olarak kullanılacaktır.',
+    'Kira süresi ' + esc(x.sure) + ' yıl olup ' + esc(tarihAdi(x.bas)) + ' tarihinde başlar' + (bit ? ', ' + esc(tarihAdi(bit)) + ' tarihinde sona erer' : '') + '. Süre bitiminde kiracı on beş gün önceden yazılı bildirimde bulunmadıkça sözleşme aynı koşullarla bir yıl uzamış sayılır.',
+    'Aylık kira bedeli ' + TL(x.kira) + ' (' + yaziyla(x.kira) + ' Türk lirası) olup her ayın ' + esc(x.gun) + '. günü ' + (x.iban ? 'kiraya verenin ' + esc(x.iban) + ' numaralı hesabına ya da elden' : 'kiraya verene elden ya da bildireceği hesaba') + ' ödenir.',
+    'Kira bedeli her kira yılının başında, bir önceki kira yılının on iki aylık tüketici fiyat endeksi ortalamasındaki değişim oranını geçmemek üzere artırılır (Türk Borçlar Kanunu m. 344).',
+    'Kiracı, sözleşme imzasında ' + TL(x.dep) + ' (' + yaziyla(x.dep) + ' Türk lirası) depozito öder. Depozito, kiralanan teslim edilirken hasar ve borç bulunmazsa iade edilir.',
+    'Kiracı kiralananı özenle kullanmak, komşulara saygı göstermek ve kiraya verenin yazılı izni olmadan kiralananda değişiklik yapmamakla yükümlüdür. Olağan kullanım dışındaki hasarları kiracı karşılar.',
+    'Kiracı, sözleşme sona erdiğinde kiralananı teslim aldığı durumda, anahtarlarıyla birlikte geri verir. Giriş ve çıkışta dairenin durumu birlikte kontrol edilerek tutanağa bağlanır.',
+    'Bu sözleşmede hüküm bulunmayan hâllerde Türk Borçlar Kanunu hükümleri uygulanır.'
+  ];
+  var ozel = (x.ozel || '').split('\n').filter(function (l) { return l.trim(); });
+  return '<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Kira Sözleşmesi</title><style>' +
+    '@page{size:A4;margin:18mm 16mm}body{font-family:"Times New Roman",serif;font-size:11.5pt;color:#000;line-height:1.45}' +
+    'h1{text-align:center;font-size:17pt;letter-spacing:2px;margin:0 0 4px}.alt{text-align:center;font-size:10pt;margin-bottom:14px}' +
+    'h2{font-size:12pt;margin:16px 0 6px;border-bottom:1px solid #000;padding-bottom:2px}table{width:100%;border-collapse:collapse}' +
+    'th,td{border:1px solid #000;padding:5px 7px;text-align:left;vertical-align:top;font-size:10.5pt}th{width:38%;background:#f2f2f2;font-weight:bold}' +
+    'ol{padding-left:20px;margin:0}li{margin-bottom:5px}.imza{display:flex;justify-content:space-between;margin-top:34px}.imza div{width:44%;text-align:center}' +
+    '.imza .cizgi{border-top:1px solid #000;margin-top:56px;padding-top:4px}</style></head><body>' +
+    '<h1>KİRA SÖZLEŞMESİ</h1><div class="alt">Elif Apartmanı · Daire ' + esc(d.no) + '</div>' +
+    '<h2>Genel bilgiler</h2><table>' +
+    s('Kiralananın adresi', (x.adres ? x.adres + ', ' : '') + 'Elif Apartmanı Daire ' + d.no) + s('Kiralananın cinsi', 'Konut (daire)') +
+    s('Kiraya veren', x.veren) + s('Kiraya verenin telefonu', x.verenTel) +
+    s('Kiracı', x.kiraci) + s('Kiracının T.C. kimlik no', x.tc) + s('Kiracının telefonu', x.kiraciTel) + s('Kiracının önceki adresi', x.eskiAdres) +
+    s('Kiranın başlangıç tarihi', x.bas ? tarihAdi(x.bas) : '') + s('Kira süresi', x.sure + ' yıl') +
+    s('Aylık kira bedeli', TL(x.kira) + ' (' + yaziyla(x.kira) + ' TL)') + s('Yıllık kira bedeli', TL(x.kira * 12)) +
+    s('Kiranın ödeme günü', 'Her ayın ' + x.gun + '. günü') + s('Depozito', TL(x.dep)) +
+    s('Demirbaşlar', x.demirbas) + '</table>' +
+    '<h2>Genel şartlar</h2><ol>' + madde.map(function (m) { return '<li>' + m + '</li>'; }).join('') + '</ol>' +
+    (ozel.length ? '<h2>Özel şartlar</h2><ol>' + ozel.map(function (m) { return '<li>' + esc(m.replace(/^\d+[.)]\s*/, '')) + '</li>'; }).join('') + '</ol>' : '') +
+    '<p style="margin-top:14px">İşbu sözleşme ' + (ozel.length + madde.length) + ' maddeden ibaret olup taraflarca okunarak ' + esc(tarihAdi(bugun())) + ' tarihinde iki nüsha olarak imzalanmıştır.</p>' +
+    '<div class="imza"><div><b>Kiraya veren</b><div class="cizgi">' + esc(x.veren || '') + '</div></div><div><b>Kiracı</b><div class="cizgi">' + esc(x.kiraci || '') + '</div></div></div>' +
+    '</body></html>';
+}
+function sozlesmeAyarSakla(x) {
+  var A = DB.ayarlar, degisti = false;
+  [['kiralayanAd', x.veren], ['kiralayanTel', x.verenTel], ['binaAdres', x.adres], ['iban', x.iban]].forEach(function (p) { if ((A[p[0]] || '') !== p[1]) { A[p[0]] = p[1]; degisti = true; } });
+  if (degisti) kaydet();
+}
+
+Object.assign(EYLEM, {
+  'tk-gun': function (el) { S.takvimGun = S.takvimGun === el.dataset.v ? '' : el.dataset.v; var y = window.scrollY; ciz(); window.scrollTo(0, y); },
+  'tema': function (el) { try { localStorage.setItem('elif-tema', el.dataset.v); } catch (e) { /* yoksay */ } temaUygula(); ciz(); },
+  'sozlesme': function (el) { sozlesmeSayfasi(el.dataset.id); },
+  'sozlesme-pdf': function (el) {
+    var d = daireBul(el.dataset.id), x = sozlesmeVeri();
+    if (!x.kiraci) { toast('Kiracı adını yazın'); return; }
+    if (x.tc && !/^\d{11}$/.test(x.tc)) { toast('T.C. kimlik no 11 haneli olmalı'); return; }
+    sozlesmeAyarSakla(x);
+    var html = sozlesmeHtml(d, x), ad = 'Kira sozlesmesi Daire ' + d.no;
+    if (BR && BR.yazdir) BR.yazdir(html, ad);
+    else { var w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); w.print(); } else toast('PDF kaydetme yalnız telefonda çalışır'); }
+  },
+  'sozlesme-onizle': function (el) {
+    var d = daireBul(el.dataset.id), x = sozlesmeVeri();
+    sozlesmeAyarSakla(x);
+    var html = sozlesmeHtml(d, x);
+    sayfaAc({ baslik: function () { return 'Önizleme'; }, ciz: function () { return '<div class="sz-onizle"><iframe id="sz-frame" title="Sözleşme önizlemesi"></iframe></div>'; },
+      hazir: function () { var f = document.getElementById('sz-frame'); if (f) f.srcdoc = html; } });
   }
 });
 

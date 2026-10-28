@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
     private static final int REQ_FOTO = 17;
     private ValueCallback<Uri[]> fotoGeri;
     private Uri kameraUri;
+    private WebView yaziciWeb;
     private String bekleyenEylem;
     private boolean kilitAcik = false, kilitSoruluyor = false, disariGitti = false;
     private long arkaPlanZamani = 0;
@@ -586,6 +587,29 @@ public class MainActivity extends Activity {
                 AutoBackup.run(app, true);
                 callJs("window.onBackupFolder && window.onBackupFolder()");
             }).start();
+        }
+
+        /** HTML belgeyi telefonun yazdırma ekranıyla açar ("PDF olarak kaydet" seçilebilir) */
+        @JavascriptInterface
+        public void yazdir(String html, String ad) {
+            runOnUiThread(() -> {
+                try {
+                    WebView w = new WebView(MainActivity.this);
+                    yaziciWeb = w;
+                    w.setWebViewClient(new WebViewClient() {
+                        @Override
+                        public void onPageFinished(WebView view, String url) {
+                            android.print.PrintManager pm = (android.print.PrintManager) getSystemService(Context.PRINT_SERVICE);
+                            if (pm == null) return;
+                            String isim = (ad == null || ad.isEmpty()) ? "Belge" : ad;
+                            pm.print(isim, view.createPrintDocumentAdapter(isim),
+                                    new android.print.PrintAttributes.Builder().setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4).build());
+                        }
+                    });
+                    w.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+                } catch (Exception ignored) {
+                }
+            });
         }
 
         /** Fotoğraflar telefonun uygulama klasöründe saklanır (files/foto) */
